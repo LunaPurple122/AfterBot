@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const { testDatabaseConnection } = require('./database/db');
+const { initDatabase } = require('./database/init');
 const fs = require('fs');
 const path = require('path');
 
@@ -49,6 +50,7 @@ for (const moduleName of modules) {
 client.once(Events.ClientReady, async readyClient => {
     console.log(`🤖 Connecté en tant que ${readyClient.user.tag}`);
     await testDatabaseConnection();
+    await initDatabase();
 });
 
 client.on(Events.InteractionCreate, async interaction => {
