@@ -1,0 +1,15 @@
+services:
+  afterbot:
+    container_name: afterbot
+
+    build: .
+
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    volumes:
+      - .:/app
+
+    command: node src/index.js
