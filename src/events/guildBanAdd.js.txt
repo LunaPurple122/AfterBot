@@ -1,0 +1,27 @@
+const { Events } = require('discord.js');
+const { envoyerLog } = require('../core/logger');
+
+module.exports = {
+    name: Events.GuildBanAdd,
+
+    async execute(ban) {
+
+        await envoyerLog(ban.client, ban.guild.id, {
+
+            titre: '🔨 Membre banni',
+
+            description:
+`👤 Utilisateur : ${ban.user}
+
+🆔 ID :
+${ban.user.id}
+
+📄 Raison :
+${ban.reason || '*Aucune raison fournie*'}`,
+
+            couleur: 0xED4245,
+
+            auteur: ban.user
+        });
+    }
+};

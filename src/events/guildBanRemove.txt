@@ -1,0 +1,24 @@
+const { Events } = require('discord.js');
+const { envoyerLog } = require('../core/logger');
+
+module.exports = {
+    name: Events.GuildBanRemove,
+
+    async execute(ban) {
+
+        await envoyerLog(ban.client, ban.guild.id, {
+
+            titre: '🔓 Membre débanni',
+
+            description:
+`👤 Utilisateur : ${ban.user}
+
+🆔 ID :
+${ban.user.id}`,
+
+            couleur: 0x57F287,
+
+            auteur: ban.user
+        });
+    }
+};

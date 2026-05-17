@@ -9,25 +9,55 @@ const commands = [];
 
 const modulesPath = path.join(__dirname, 'modules');
 
-const modules = fs.readdirSync(modulesPath);
+function recupererCommandes(dossier) {
 
-for (const moduleName of modules) {
-    const commandsPath = path.join(modulesPath, moduleName, 'commands');
+    let fichiers = [];
 
-    if (!fs.existsSync(commandsPath)) continue;
+    const elements =
+        fs.readdirSync(dossier, {
+            withFileTypes: true
+        });
 
-    const commandFiles = fs.readdirSync(commandsPath)
-        .filter(file => file.endsWith('.js'));
+    for (const element of elements) {
 
-    for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
+        const chemin =
+            path.join(dossier, element.name);
 
-        const command = require(filePath);
+        if (element.isDirectory()) {
 
-        commands.push(command.data.toJSON());
+            fichiers =
+                fichiers.concat(
+                    recupererCommandes(chemin)
+                );
 
-        console.log(`✅ Commande préparée : ${command.data.name}`);
+        } else if (
+            element.name.endsWith('.js')
+        ) {
+
+            fichiers.push(chemin);
+        }
     }
+
+    return fichiers;
+}
+
+const commandFiles =
+    recupererCommandes(modulesPath);
+
+for (const filePath of commandFiles) {
+
+    const command =
+        require(filePath);
+
+    if (!command.data) continue;
+
+    commands.push(
+        command.data.toJSON()
+    );
+
+    console.log(
+        `✅ Commande préparée : ${command.data.name}`
+    );
 }
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN);

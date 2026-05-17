@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const { testDatabaseConnection } = require('./database/db');
 const { initDatabase } = require('./database/init');
+const { envoyerLog } = require('./core/logger');
 
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,9 @@ const {
 
 const client = new Client({
     intents: [
+        GatewayIntentBits.GuildExpressions,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildModeration,
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
@@ -34,27 +38,56 @@ client.commands = new Collection();
 
 const modulesPath = path.join(__dirname, 'modules');
 
-const modules = fs.readdirSync(modulesPath);
+function recupererCommandes(dossier) {
 
-for (const moduleName of modules) {
+    let fichiers = [];
 
-    const commandsPath = path.join(modulesPath, moduleName, 'commands');
+    const elements =
+        fs.readdirSync(dossier, {
+            withFileTypes: true
+        });
 
-    if (!fs.existsSync(commandsPath)) continue;
+    for (const element of elements) {
 
-    const commandFiles = fs.readdirSync(commandsPath)
-        .filter(file => file.endsWith('.js'));
+        const chemin =
+            path.join(dossier, element.name);
 
-    for (const file of commandFiles) {
+        if (element.isDirectory()) {
 
-        const filePath = path.join(commandsPath, file);
+            fichiers =
+                fichiers.concat(
+                    recupererCommandes(chemin)
+                );
 
-        const command = require(filePath);
+        } else if (
+            element.name.endsWith('.js')
+        ) {
 
-        client.commands.set(command.data.name, command);
-
-        console.log(`✅ Commande chargée : ${command.data.name}`);
+            fichiers.push(chemin);
+        }
     }
+
+    return fichiers;
+}
+
+const commandFiles =
+    recupererCommandes(modulesPath);
+
+for (const filePath of commandFiles) {
+
+    const command =
+        require(filePath);
+
+    if (!command.data) continue;
+
+    client.commands.set(
+        command.data.name,
+        command
+    );
+
+    console.log(
+        `✅ Commande chargée : ${command.data.name}`
+    );
 }
 
 client.once(Events.ClientReady, async readyClient => {
@@ -70,7 +103,28 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!interaction.isChatInputCommand()) return;
 
-    const command = client.commands.get(interaction.commandName);
+    await envoyerLog(client, interaction.guild.id, {
+
+        titre: '🤖 Commande utilisée',
+
+        description:
+`👤 Utilisateur : ${interaction.user}
+
+⚡ Commande :
+/${interaction.commandName}
+
+📍 Salon :
+${interaction.channel}`,
+
+        couleur: 0x5865F2,
+
+        auteur: interaction.user
+    });
+
+    const command =
+        client.commands.get(
+            interaction.commandName
+        );
 
     if (!command) return;
 
@@ -82,17 +136,26 @@ client.on(Events.InteractionCreate, async interaction => {
 
         console.error(error);
 
-        if (interaction.replied || interaction.deferred) {
+        if (
+            interaction.replied ||
+            interaction.deferred
+        ) {
 
             await interaction.followUp({
-                content: '❌ Une erreur est survenue.',
+
+                content:
+                    '❌ Une erreur est survenue.',
+
                 ephemeral: true
             });
 
         } else {
 
             await interaction.reply({
-                content: '❌ Une erreur est survenue.',
+
+                content:
+                    '❌ Une erreur est survenue.',
+
                 ephemeral: true
             });
         }
@@ -108,26 +171,41 @@ if (fs.existsSync(eventsPath)) {
 
     for (const file of eventFiles) {
 
-        const filePath = path.join(eventsPath, file);
+        const filePath =
+            path.join(eventsPath, file);
 
         console.log(filePath);
 
-        const event = require(filePath);
+        const loadedFile =
+            require(filePath);
 
-        if (event.once) {
+        const events =
+            Object.values(loadedFile);
 
-            client.once(event.name, (...args) =>
-                event.execute(...args)
-            );
+        for (const event of events) {
 
-        } else {
+            if (
+                !event.name ||
+                !event.execute
+            ) continue;
 
-            client.on(event.name, (...args) =>
-                event.execute(...args)
+            if (event.once) {
+
+                client.once(event.name, (...args) =>
+                    event.execute(...args)
+                );
+
+            } else {
+
+                client.on(event.name, (...args) =>
+                    event.execute(...args)
+                );
+            }
+
+            console.log(
+                `✅ Event chargé : ${event.name}`
             );
         }
-
-        console.log(`✅ Event chargé : ${event.name}`);
     }
 }
 

@@ -39,6 +39,20 @@ module.exports = {
                 )
         )
 
+        // DEPART
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('depart')
+                .setDescription('Définir le salon de départ.')
+                .addChannelOption(option =>
+                    option
+                        .setName('salon')
+                        .setDescription('Salon de départ')
+                        .addChannelTypes(ChannelType.GuildText)
+                        .setRequired(true)
+                )
+        )
+
         // RADIO
         .addSubcommand(subcommand =>
             subcommand
@@ -75,6 +89,59 @@ module.exports = {
                     option
                         .setName('etat')
                         .setDescription('Activer ou désactiver')
+                        .setRequired(true)
+                )
+        )
+
+        // CAPTCHA ROLE NON VERIFIE
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('captcha-role-non-verifie')
+                .setDescription('Définir le rôle non vérifié.')
+                .addRoleOption(option =>
+                    option
+                        .setName('role')
+                        .setDescription('Rôle non vérifié')
+                        .setRequired(true)
+                )
+        )
+
+        // CAPTCHA ROLE MEMBRE
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('captcha-role-membre')
+                .setDescription('Définir le rôle membre.')
+                .addRoleOption(option =>
+                    option
+                        .setName('role')
+                        .setDescription('Rôle membre')
+                        .setRequired(true)
+                )
+        )
+
+        // CAPTCHA CATEGORIE
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('captcha-categorie')
+                .setDescription('Définir la catégorie captcha.')
+                .addChannelOption(option =>
+                    option
+                        .setName('categorie')
+                        .setDescription('Catégorie captcha')
+                        .addChannelTypes(ChannelType.GuildCategory)
+                        .setRequired(true)
+                )
+        )
+
+        // REGLEMENT ROLE
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('reglement-role')
+                .setDescription('Définir le rôle règlement.')
+                .addRoleOption(option =>
+                    option
+                        .setName('role')
+                        .setDescription('Rôle règlement')
                         .setRequired(true)
                 )
         )
@@ -116,6 +183,24 @@ module.exports = {
 
             return interaction.reply({
                 content: `✅ Salon de bienvenue défini sur ${salon}.`,
+                ephemeral: true
+            });
+        }
+
+        //DEPART
+        if (subcommand === 'depart') {
+
+            const salon = interaction.options.getChannel('salon');
+
+            await pool.query(`
+                UPDATE serveurs
+                SET salon_depart_id = $1
+                WHERE serveur_id = $2
+            `, [salon.id, serveurId]);
+
+            return interaction.reply({
+                content:
+                    `✅ Salon de départ défini sur ${salon}.`,
                 ephemeral: true
             });
         }
@@ -170,5 +255,79 @@ module.exports = {
                 ephemeral: true
             });
         }
+
+        // CAPTCHA ROLE NON VERIFIE
+        if (subcommand === 'captcha-role-non-verifie') {
+
+            const role = interaction.options.getRole('role');
+
+            await pool.query(`
+                UPDATE serveurs
+                SET role_non_verifie_id = $1
+                WHERE serveur_id = $2
+            `, [role.id, serveurId]);
+
+            return interaction.reply({
+                content: `✅ Rôle non vérifié défini sur ${role}.`,
+                ephemeral: true
+            });
+        }
+
+        // CAPTCHA ROLE MEMBRE
+        if (subcommand === 'captcha-role-membre') {
+
+            const role = interaction.options.getRole('role');
+
+            await pool.query(`
+                UPDATE serveurs
+                SET role_membre_id = $1
+                WHERE serveur_id = $2
+            `, [role.id, serveurId]);
+
+            return interaction.reply({
+                content: `✅ Rôle membre défini sur ${role}.`,
+                ephemeral: true
+            });
+        }
+
+        // CAPTCHA CATEGORIE
+        if (subcommand === 'captcha-categorie') {
+
+            const categorie =
+                interaction.options.getChannel('categorie');
+
+            await pool.query(`
+                UPDATE serveurs
+                SET categorie_captcha_id = $1
+                WHERE serveur_id = $2
+            `, [categorie.id, serveurId]);
+
+            return interaction.reply({
+                content: `✅ Catégorie captcha définie sur ${categorie}.`,
+                ephemeral: true
+            });
+        }
+
+        // REGLEMENT ROLE
+        if (subcommand === 'reglement-role') {
+
+            const role =
+                interaction.options.getRole('role');
+
+            await pool.query(`
+                UPDATE serveurs
+                SET role_reglement_id = $1
+                WHERE serveur_id = $2
+            `, [role.id, serveurId]);
+
+            return interaction.reply({
+
+                content:
+                    `✅ Rôle règlement défini sur ${role}.`,
+
+                ephemeral: true
+            });
+        }
+
     }
 };

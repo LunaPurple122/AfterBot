@@ -1,0 +1,265 @@
+const {
+    ChannelType,
+    PermissionsBitField,
+    AttachmentBuilder
+} = require('discord.js');
+
+const { genererCaptcha } =
+    require('./captchaGenerator');
+
+const {
+    ajouterCaptcha,
+    recupererCaptcha,
+    incrementerEssais,
+    supprimerCaptcha
+} = require('./captchaStorage');
+
+const { pool } =
+    require('../database/db');
+
+async function creerCaptcha(member) {
+
+    const result = await pool.query(
+        `SELECT
+            captcha_actif,
+            role_non_verifie_id,
+            role_membre_id,
+            categorie_captcha_id
+        FROM serveurs
+        WHERE serveur_id = $1`,
+        [member.guild.id]
+    );
+
+    const config = result.rows[0];
+
+    if (!config) return;
+
+    if (!config.captcha_actif) return;
+
+    // ROLE NON VERIFIE
+    if (config.role_non_verifie_id) {
+
+        const roleNonVerifie =
+            member.guild.roles.cache.get(
+                config.role_non_verifie_id
+            );
+
+        if (roleNonVerifie) {
+
+            await member.roles.add(
+                roleNonVerifie
+            );
+        }
+    }
+
+    // CREATION SALON
+    const salon =
+        await member.guild.channels.create({
+
+            name:
+                `verification-${member.user.username}`,
+
+            type: ChannelType.GuildText,
+
+            parent:
+                config.categorie_captcha_id,
+
+            permissionOverwrites: [
+
+                {
+                    id: member.guild.id,
+
+                    deny: [
+                        PermissionsBitField.Flags.ViewChannel
+                    ]
+                },
+
+                {
+                    id: member.id,
+
+                    allow: [
+                        PermissionsBitField.Flags.ViewChannel,
+                        PermissionsBitField.Flags.SendMessages,
+                        PermissionsBitField.Flags.ReadMessageHistory
+                    ]
+                }
+            ]
+        });
+
+    // CAPTCHA
+    const captcha = genererCaptcha();
+
+    ajouterCaptcha(
+        member.id,
+        captcha.code
+    );
+
+    const attachment =
+        new AttachmentBuilder(
+            captcha.buffer,
+            {
+                name: 'captcha.png'
+            }
+        );
+
+    await salon.send({
+
+        content:
+`🌃 Bienvenue ${member}
+
+Pour accéder au serveur :
+
+Tape le code affiché sur l’image.`,
+
+        files: [attachment]
+    });
+}
+
+async function verifierCaptcha(message) {
+
+    if (!message.guild) return false;
+
+    if (message.author.bot) return false;
+
+    const captcha =
+        recupererCaptcha(message.author.id);
+
+    if (!captcha) return false;
+
+    // EXPIRATION
+    if (
+        Date.now() - captcha.creeLe >
+        1000 * 60 * 5
+    ) {
+
+        supprimerCaptcha(message.author.id);
+
+        await message.channel.send(
+            '❌ Captcha expiré.'
+        );
+
+        return false;
+    }
+
+    // MAUVAIS CODE
+    if (
+        message.content.toUpperCase() !==
+        captcha.code
+    ) {
+
+        incrementerEssais(
+            message.author.id
+        );
+
+        const updatedCaptcha =
+            recupererCaptcha(
+                message.author.id
+            );
+
+        if (
+            updatedCaptcha.essais >= 5
+        ) {
+
+            await message.channel.send(
+                '❌ Trop de tentatives.'
+            );
+
+            try {
+
+                await message.member.kick(
+                    'Captcha échoué'
+                );
+
+            } catch {}
+
+            supprimerCaptcha(
+                message.author.id
+            );
+
+            return true;
+        }
+
+        await message.channel.send(
+            `❌ Code incorrect.
+
+Tentatives restantes :
+${5 - updatedCaptcha.essais}`
+        );
+
+        return true;
+    }
+
+    // CONFIG
+    const result = await pool.query(
+        `SELECT
+            role_non_verifie_id,
+            role_membre_id
+        FROM serveurs
+        WHERE serveur_id = $1`,
+        [message.guild.id]
+    );
+
+    const config = result.rows[0];
+
+    const membre =
+        await message.guild.members.fetch(
+            message.author.id
+        );
+
+    // RETIRER ROLE NON VERIFIE
+    if (config.role_non_verifie_id) {
+
+        const roleNonVerifie =
+            message.guild.roles.cache.get(
+                config.role_non_verifie_id
+            );
+
+        if (roleNonVerifie) {
+
+            await membre.roles.remove(
+                roleNonVerifie
+            );
+        }
+    }
+
+    // AJOUT ROLE MEMBRE
+    if (config.role_membre_id) {
+
+        const roleMembre =
+            message.guild.roles.cache.get(
+                config.role_membre_id
+            );
+
+        if (roleMembre) {
+
+            await membre.roles.add(
+                roleMembre
+            );
+        }
+    }
+
+    supprimerCaptcha(
+        message.author.id
+    );
+
+    await message.channel.send(
+        '✅ Vérification réussie.'
+    );
+
+    setTimeout(async () => {
+
+        try {
+
+            await message.channel.delete();
+
+        } catch {}
+
+    }, 3000);
+
+    return true;
+}
+
+module.exports = {
+    creerCaptcha,
+    verifierCaptcha
+};
