@@ -1,5 +1,7 @@
 services:
+
   afterbot:
+
     container_name: afterbot
 
     build: .
@@ -13,3 +15,12 @@ services:
       - .:/app
 
     command: node src/index.js
+
+    networks:
+      - postgres_default
+
+
+networks:
+
+  postgres_default:
+    external: true
