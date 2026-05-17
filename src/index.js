@@ -38,7 +38,7 @@ client.commands = new Collection();
 
 const modulesPath = path.join(__dirname, 'modules');
 
-function recupererCommandes(dossier) {
+function recupererFichiers(dossier) {
 
     let fichiers = [];
 
@@ -56,7 +56,7 @@ function recupererCommandes(dossier) {
 
             fichiers =
                 fichiers.concat(
-                    recupererCommandes(chemin)
+                    recupererFichiers(chemin)
                 );
 
         } else if (
@@ -70,8 +70,9 @@ function recupererCommandes(dossier) {
     return fichiers;
 }
 
+// COMMANDES
 const commandFiles =
-    recupererCommandes(modulesPath);
+    recupererFichiers(modulesPath);
 
 for (const filePath of commandFiles) {
 
@@ -86,13 +87,127 @@ for (const filePath of commandFiles) {
     );
 
     console.log(
-        `✅ Commande chargée : ${command.data.name}`
+`✅ Commande chargée : ${command.data.name}`
     );
+}
+
+// EVENTS CLASSIQUES
+const eventsPath =
+    path.join(__dirname, 'events');
+
+if (fs.existsSync(eventsPath)) {
+
+    const eventFiles =
+        fs.readdirSync(eventsPath)
+            .filter(file =>
+                file.endsWith('.js')
+            );
+
+    for (const file of eventFiles) {
+
+        const filePath =
+            path.join(eventsPath, file);
+
+        console.log(filePath);
+
+        const loadedFile =
+            require(filePath);
+
+        const events =
+            Object.values(loadedFile);
+
+        for (const event of events) {
+
+            if (
+                !event.name ||
+                !event.execute
+            ) continue;
+
+            if (event.once) {
+
+                client.once(
+
+                    event.name,
+
+                    (...args) =>
+                        event.execute(...args)
+                );
+
+            } else {
+
+                client.on(
+
+                    event.name,
+
+                    (...args) =>
+                        event.execute(...args)
+                );
+            }
+
+            console.log(
+`✅ Event chargé : ${event.name}`
+            );
+        }
+    }
+}
+
+// EVENTS MODULES
+const moduleEventFiles =
+    recupererFichiers(modulesPath);
+
+for (const filePath of moduleEventFiles) {
+
+    if (
+        !filePath.includes(
+            `${path.sep}events${path.sep}`
+        )
+    ) continue;
+
+    const loadedFile =
+        require(filePath);
+
+    const events =
+        Object.values(loadedFile);
+
+    for (const event of events) {
+
+        if (
+            !event.name ||
+            !event.execute
+        ) continue;
+
+        if (event.once) {
+
+            client.once(
+
+                event.name,
+
+                (...args) =>
+                    event.execute(...args)
+            );
+
+        } else {
+
+            client.on(
+
+                event.name,
+
+                (...args) =>
+                    event.execute(...args)
+            );
+        }
+
+        console.log(
+`✅ Event chargé : ${event.name}`
+        );
+    }
 }
 
 client.once(Events.ClientReady, async readyClient => {
 
-    console.log(`🤖 Connecté en tant que ${readyClient.user.tag}`);
+    console.log(
+`🤖 Connecté en tant que ${readyClient.user.tag}`
+    );
 
     await testDatabaseConnection();
 
@@ -161,52 +276,5 @@ ${interaction.channel}`,
         }
     }
 });
-
-const eventsPath = path.join(__dirname, 'events');
-
-if (fs.existsSync(eventsPath)) {
-
-    const eventFiles = fs.readdirSync(eventsPath)
-        .filter(file => file.endsWith('.js'));
-
-    for (const file of eventFiles) {
-
-        const filePath =
-            path.join(eventsPath, file);
-
-        console.log(filePath);
-
-        const loadedFile =
-            require(filePath);
-
-        const events =
-            Object.values(loadedFile);
-
-        for (const event of events) {
-
-            if (
-                !event.name ||
-                !event.execute
-            ) continue;
-
-            if (event.once) {
-
-                client.once(event.name, (...args) =>
-                    event.execute(...args)
-                );
-
-            } else {
-
-                client.on(event.name, (...args) =>
-                    event.execute(...args)
-                );
-            }
-
-            console.log(
-                `✅ Event chargé : ${event.name}`
-            );
-        }
-    }
-}
 
 client.login(process.env.DISCORD_TOKEN);
