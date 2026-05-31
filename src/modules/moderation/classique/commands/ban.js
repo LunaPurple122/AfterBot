@@ -14,7 +14,7 @@ module.exports = {
         .setName('ban')
 
         .setDescription(
-            'Bannir un membre.'
+            'Bannir un membre ou un utilisateur par ID.'
         )
 
         .addUserOption(option =>
@@ -23,7 +23,7 @@ module.exports = {
                 .setName('membre')
 
                 .setDescription(
-                    'Membre à bannir'
+                    'Membre ou utilisateur à bannir'
                 )
 
                 .setRequired(true)
@@ -62,13 +62,13 @@ module.exports = {
                 'raison'
             ) || 'Aucune raison fournie';
 
-        // MEMBRE INTROUVABLE
-        if (!membre) {
+        // USER INTROUVABLE
+        if (!user) {
 
             return interaction.reply({
 
                 content:
-                    '❌ Membre introuvable.',
+                    '❌ Utilisateur introuvable.',
 
                 ephemeral: true
             });
@@ -76,7 +76,7 @@ module.exports = {
 
         // SELF BAN
         if (
-            membre.id === interaction.user.id
+            user.id === interaction.user.id
         ) {
 
             return interaction.reply({
@@ -90,7 +90,7 @@ module.exports = {
 
         // OWNER
         if (
-            membre.id ===
+            user.id ===
             interaction.guild.ownerId
         ) {
 
@@ -103,52 +103,54 @@ module.exports = {
             });
         }
 
-        // HIERARCHIE
-        if (
-            membre.roles.highest.position >=
-            interaction.member.roles.highest.position
-            &&
-            interaction.guild.ownerId !==
-            interaction.user.id
-        ) {
+        // HIERARCHIE UNIQUEMENT SI LE MEMBRE EST SUR LE SERVEUR
+        if (membre) {
 
-            return interaction.reply({
+            if (
+                membre.roles.highest.position >=
+                interaction.member.roles.highest.position
+                &&
+                interaction.guild.ownerId !==
+                interaction.user.id
+            ) {
 
-                content:
-                    '❌ Ce membre possède un rôle supérieur ou égal au tien.',
+                return interaction.reply({
 
-                ephemeral: true
-            });
-        }
+                    content:
+                        '❌ Ce membre possède un rôle supérieur ou égal au tien.',
 
-        // BOT HIERARCHIE
-        if (
-            membre.roles.highest.position >=
-            interaction.guild.members.me.roles.highest.position
-        ) {
+                    ephemeral: true
+                });
+            }
 
-            return interaction.reply({
+            // BOT HIERARCHIE
+            if (
+                membre.roles.highest.position >=
+                interaction.guild.members.me.roles.highest.position
+            ) {
 
-                content:
-                    '❌ Mon rôle est trop bas pour bannir ce membre.',
+                return interaction.reply({
 
-                ephemeral: true
-            });
-        }
+                    content:
+                        '❌ Mon rôle est trop bas pour bannir ce membre.',
 
-        // DM
-        try {
+                    ephemeral: true
+                });
+            }
 
-            const embed =
-                new EmbedBuilder()
+            // DM UNIQUEMENT SI LE MEMBRE EST SUR LE SERVEUR
+            try {
 
-                    .setColor(0xED4245)
+                const embed =
+                    new EmbedBuilder()
 
-                    .setTitle(
-                        '🔨 Bannissement'
-                    )
+                        .setColor(0xED4245)
 
-                    .setDescription(
+                        .setTitle(
+                            '🔨 Bannissement'
+                        )
+
+                        .setDescription(
 `Tu as été banni de :
 
 🌃 ${interaction.guild.name}
@@ -158,32 +160,36 @@ ${raison}
 
 📧 Demande de déban :
 deban-adg@afterproject.fr`
-                    )
+                        )
 
-                    .setTimestamp();
+                        .setTimestamp();
 
-            await membre.send({
-                embeds: [embed]
-            });
+                await membre.send({
+                    embeds: [embed]
+                });
 
-        } catch {}
+            } catch {}
+        }
 
-        // BAN
+        // BAN PAR ID, FONCTIONNE AUSSI SI LA PERSONNE N'EST PAS SUR LE SERVEUR
         try {
 
-            await membre.ban({
+            await interaction.guild.bans.create(
+                user.id,
+                {
+                    reason:
+                        `${raison} | Modérateur : ${interaction.user.tag}`
+                }
+            );
 
-                reason:
-                    `${raison} | Modérateur : ${interaction.user.tag}`
+        } catch (error) {
 
-            });
-
-        } catch {
+            console.error(error);
 
             return interaction.reply({
 
                 content:
-                    '❌ Impossible de bannir ce membre.',
+                    '❌ Impossible de bannir cet utilisateur.',
 
                 ephemeral: true
             });
@@ -211,8 +217,11 @@ ${raison}`
                 titre: '🔨 Bannissement',
 
                 description:
-`👤 Membre :
+`👤 Utilisateur :
 ${user}
+
+🆔 ID :
+${user.id}
 
 🛡️ Modérateur :
 ${interaction.user}
