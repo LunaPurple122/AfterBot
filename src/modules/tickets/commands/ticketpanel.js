@@ -76,7 +76,7 @@ module.exports = {
                 .setColor(0x5865F2)
 
                 .setTitle(
-                    '🎫 Support AfterStation'
+                    '🎫 Support ${interaction.guild.name}'
                 )
 
                 .setDescription(
