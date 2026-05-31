@@ -76,7 +76,7 @@ module.exports = {
                 .setColor(0x5865F2)
 
                 .setTitle(
-                    '🎫 Support ${interaction.guild.name}'
+                    '🎫 Support ${member.guild.name}'
                 )
 
                 .setDescription(
