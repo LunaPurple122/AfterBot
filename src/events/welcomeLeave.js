@@ -51,7 +51,7 @@ module.exports = {
                     .setDescription(
 `Bienvenue ${member}
 
-Tu es désormais connecté à AfterStation 😏`
+Tu es désormais connecté à ${member.guild.name} 😏`
                     )
 
                     .setThumbnail(
