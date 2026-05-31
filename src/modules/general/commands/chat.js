@@ -1,67 +1,48 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ChannelType
+    ChannelType,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    ActionRowBuilder
 } = require('discord.js');
 
 module.exports = {
-
     data: new SlashCommandBuilder()
-
         .setName('chat')
-
         .setDescription('Faire parler le bot dans un salon.')
-
         .addChannelOption(option =>
             option
                 .setName('channel')
-                .setDescription('Salon où envoyer le message.')
+                .setDescription('Salon cible')
                 .setRequired(true)
                 .addChannelTypes(
                     ChannelType.GuildText,
                     ChannelType.GuildAnnouncement
                 )
         )
-
-        .addStringOption(option =>
-            option
-                .setName('message')
-                .setDescription('Message à envoyer.')
-                .setRequired(true)
-        )
-
-        .setDefaultMemberPermissions(
-            PermissionFlagsBits.Administrator
-        ),
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
+        const channel = interaction.options.getChannel('channel');
 
-        const channel =
-            interaction.options.getChannel('channel');
+        const modal = new ModalBuilder()
+            .setCustomId(`chat_modal_${channel.id}`)
+            .setTitle('Message du bot');
 
-        let message =
-            interaction.options.getString('message');
+        const messageInput = new TextInputBuilder()
+            .setCustomId('message')
+            .setLabel('Message à envoyer')
+            .setStyle(TextInputStyle.Paragraph)
+            .setPlaceholder('Écris ton message ici...')
+            .setRequired(true)
+            .setMaxLength(2000);
 
-        message =
-            message.replace(/\\n/g, '\n');
+        const row = new ActionRowBuilder().addComponents(messageInput);
 
-        if (!channel.isTextBased()) {
-            return interaction.reply({
-                content: '❌ Ce salon ne peut pas recevoir de message.',
-                ephemeral: true
-            });
-        }
+        modal.addComponents(row);
 
-        await channel.send({
-            content: message,
-            allowedMentions: {
-                parse: ['users', 'roles', 'everyone']
-            }
-        });
-
-        await interaction.reply({
-            content: `✅ Message envoyé dans ${channel}.`,
-            ephemeral: true
-        });
+        await interaction.showModal(modal);
     }
 };
