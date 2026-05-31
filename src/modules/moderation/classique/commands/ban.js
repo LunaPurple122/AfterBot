@@ -157,7 +157,7 @@ module.exports = {
 ${raison}
 
 📧 Demande de déban :
-deban@afterstation.fr`
+deban-adg@afterproject.fr`
                     )
 
                     .setTimestamp();
