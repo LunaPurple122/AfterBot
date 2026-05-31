@@ -89,6 +89,49 @@ module.exports = {
                 !staffRole
             ) return;
 
+            // ROLES PING TICKETS
+            await pool.query(`
+
+                CREATE TABLE IF NOT EXISTS ticket_ping_roles (
+
+                    id SERIAL PRIMARY KEY,
+
+                    serveur_id VARCHAR(32)
+                        NOT NULL,
+
+                    role_id VARCHAR(32)
+                        NOT NULL,
+
+                    UNIQUE (serveur_id, role_id)
+                );
+            `);
+
+            const pingRolesResult =
+                await pool.query(
+
+                    `
+                    SELECT role_id
+                    FROM ticket_ping_roles
+                    WHERE serveur_id = $1
+                    ORDER BY id ASC
+                    `,
+
+                    [
+                        message.guild.id
+                    ]
+                );
+
+            const staffPings =
+                pingRolesResult.rows.length > 0
+
+                    ? pingRolesResult.rows
+                        .map(row =>
+                            `<@&${row.role_id}>`
+                        )
+                        .join(' ')
+
+                    : `${staffRole}`;
+
             // ALERT EMBED
             const embed =
                 new EmbedBuilder()
@@ -164,7 +207,7 @@ ${message.content}`
             await alertChannel.send({
 
                 content:
-`${staffRole}`,
+staffPings,
 
                 embeds: [embed],
 
