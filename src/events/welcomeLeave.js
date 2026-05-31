@@ -68,6 +68,10 @@ Tu es désormais connecté à ${member.guild.name} 😏`
                     .setTimestamp();
 
             await salon.send({
+                
+                content:
+                    `|| ${member} ||`,
+
                 embeds: [embed]
             });
         }
