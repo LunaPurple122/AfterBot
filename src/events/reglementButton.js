@@ -1,9 +1,14 @@
 const {
-    Events
+    Events,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { pool } =
     require('../database/db');
+
+const {
+    botHasGuildPermission
+} = require('../core/permissions');
 
 module.exports = {
 
@@ -58,6 +63,24 @@ module.exports = {
                 });
             }
 
+            if (
+                !botHasGuildPermission(
+                    interaction.guild,
+                    PermissionFlagsBits.ManageRoles
+                )
+            ) {
+
+                console.error('Permission bot manquante pour donner le rôle règlement : ManageRoles');
+
+                return interaction.reply({
+
+                    content:
+                        '❌ Permission bot manquante : ManageRoles.',
+
+                    ephemeral: true
+                });
+            }
+
             // DEJA VERIFIE
             if (
                 interaction.member.roles.cache.has(
@@ -88,7 +111,9 @@ module.exports = {
                     ephemeral: true
                 });
 
-            } catch {
+            } catch (error) {
+
+                console.error('Impossible de donner le rôle règlement :', error);
 
                 return interaction.reply({
 

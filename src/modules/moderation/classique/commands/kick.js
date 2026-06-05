@@ -7,6 +7,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -61,6 +65,12 @@ module.exports = {
             interaction.options.getString(
                 'raison'
             ) || 'Aucune raison fournie';
+
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.KickMembers,
+            'KickMembers'
+        )) return;
 
         // MEMBRE INTROUVABLE
         if (!membre) {
@@ -163,7 +173,9 @@ ${raison}`
                 embeds: [embed]
             });
 
-        } catch {}
+        } catch (error) {
+            console.error(`Impossible d'envoyer le DM de kick à ${membre.id} :`, error);
+        }
 
         // KICK
         try {
@@ -172,7 +184,9 @@ ${raison}`
                 `${raison} | Modérateur : ${interaction.user.tag}`
             );
 
-        } catch {
+        } catch (error) {
+
+            console.error(`Impossible de kick ${membre.id} :`, error);
 
             return interaction.reply({
 

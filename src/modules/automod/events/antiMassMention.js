@@ -69,10 +69,20 @@ module.exports = {
 
                 await message.delete();
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible de supprimer le message mass mention ${message.id} :`, error);
+            }
 
             // TIMEOUT
-            try {
+            if (
+                !message.guild.members.me.permissions.has(
+                    PermissionsBitField.Flags.ModerateMembers
+                )
+            ) {
+
+                console.error('Permission bot manquante pour timeout mass mention : ModerateMembers');
+
+            } else try {
 
                 await message.member.timeout(
 
@@ -83,7 +93,9 @@ module.exports = {
                     'Automod : mass mention détectée'
                 );
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible de timeout ${message.author.id} après mass mention :`, error);
+            }
 
             // LOG
             const logsChannel =

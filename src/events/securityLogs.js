@@ -1,9 +1,23 @@
 const {
     Events,
-    AuditLogEvent
+    AuditLogEvent,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { envoyerLog } = require('../core/logger');
+const { botHasGuildPermission } = require('../core/permissions');
+
+function canFetchAuditLogs(guild, context) {
+    if (
+        botHasGuildPermission(
+            guild,
+            PermissionFlagsBits.ViewAuditLog
+        )
+    ) return true;
+
+    console.error(`Permission bot manquante pour les audit logs ${context} : ViewAuditLog`);
+    return false;
+}
 
 module.exports = {
 
@@ -18,7 +32,7 @@ module.exports = {
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(member.guild, 'BotAdd')) try {
 
                 const fetchedLogs = await member.guild.fetchAuditLogs({
                     limit: 1,
@@ -35,7 +49,9 @@ module.exports = {
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs BotAdd :', error);
+            }
 
             await envoyerLog(member.client, member.guild.id, {
 
@@ -67,7 +83,7 @@ ${moderateur || 'Inconnu'}`,
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(emoji.guild, 'EmojiCreate')) try {
 
                 const fetchedLogs = await emoji.guild.fetchAuditLogs({
                     limit: 1,
@@ -84,7 +100,9 @@ ${moderateur || 'Inconnu'}`,
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs EmojiCreate :', error);
+            }
 
             await envoyerLog(emoji.client, emoji.guild.id, {
 
@@ -114,7 +132,7 @@ ${moderateur || 'Inconnu'}`,
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(emoji.guild, 'EmojiDelete')) try {
 
                 const fetchedLogs = await emoji.guild.fetchAuditLogs({
                     limit: 1,
@@ -131,7 +149,9 @@ ${moderateur || 'Inconnu'}`,
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs EmojiDelete :', error);
+            }
 
             await envoyerLog(emoji.client, emoji.guild.id, {
 
@@ -160,7 +180,7 @@ ${moderateur || 'Inconnu'}`,
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(newEmoji.guild, 'EmojiUpdate')) try {
 
                 const fetchedLogs = await newEmoji.guild.fetchAuditLogs({
                     limit: 1,
@@ -177,7 +197,9 @@ ${moderateur || 'Inconnu'}`,
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs EmojiUpdate :', error);
+            }
 
             await envoyerLog(newEmoji.client, newEmoji.guild.id, {
 

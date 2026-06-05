@@ -7,6 +7,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -61,6 +65,12 @@ module.exports = {
             interaction.options.getString(
                 'raison'
             ) || 'Aucune raison fournie';
+
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.ModerateMembers,
+            'ModerateMembers'
+        )) return;
 
         // MEMBRE INTROUVABLE
         if (!membre) {
@@ -132,7 +142,9 @@ ${raison}`
                 embeds: [embed]
             });
 
-        } catch {}
+        } catch (error) {
+            console.error(`Impossible d'envoyer le DM d'untimeout à ${membre.id} :`, error);
+        }
 
         // REMOVE TIMEOUT
         try {
@@ -144,7 +156,9 @@ ${raison}`
                 `${raison} | Modérateur : ${interaction.user.tag}`
             );
 
-        } catch {
+        } catch (error) {
+
+            console.error(`Impossible de retirer le timeout de ${membre.id} :`, error);
 
             return interaction.reply({
 

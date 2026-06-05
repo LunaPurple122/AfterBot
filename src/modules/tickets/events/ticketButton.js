@@ -2,11 +2,16 @@ const {
     Events,
     ChannelType,
     PermissionsBitField,
+    PermissionFlagsBits,
     EmbedBuilder
 } = require('discord.js');
 
 const { pool } =
     require('../../../database/db');
+
+const {
+    requireBotPermission
+} = require('../../../core/permissions');
 
 module.exports = {
 
@@ -16,8 +21,6 @@ module.exports = {
 
         async execute(interaction) {
 
-            console.log('ticket button clicked');
-
             if (!interaction.isButton()) return;
 
             if (
@@ -25,7 +28,11 @@ module.exports = {
                 'create_ticket'
             ) return;
 
-            console.log('checking config');
+            if (!await requireBotPermission(
+                interaction,
+                PermissionFlagsBits.ManageChannels,
+                'ManageChannels'
+            )) return;
 
             const result =
                 await pool.query(
@@ -41,8 +48,6 @@ module.exports = {
                     ]
                 );
 
-            console.log('config fetched');
-
             const config =
                 result.rows[0];
 
@@ -56,8 +61,6 @@ module.exports = {
                     ephemeral: true
                 });
             }
-
-            console.log('checking existing ticket');
 
             // TICKET DÉJÀ OUVERT
             const existingTicket =
@@ -77,8 +80,6 @@ module.exports = {
                         interaction.user.id
                     ]
                 );
-
-            console.log('existing checked');
 
             if (
                 existingTicket.rows.length > 0
@@ -102,8 +103,6 @@ ${existingChannel}`,
                 });
             }
 
-            console.log('fetching category and role');
-
             const category =
                 interaction.guild.channels.cache.get(
                     config.category_id
@@ -113,8 +112,6 @@ ${existingChannel}`,
                 interaction.guild.roles.cache.get(
                     config.staff_role_id
                 );
-
-            console.log('category and role fetched');
 
             if (
                 !category ||
@@ -129,8 +126,6 @@ ${existingChannel}`,
                     ephemeral: true
                 });
             }
-
-            console.log('creating channel');
 
             // CREATE CHANNEL
             const ticketChannel =
@@ -200,10 +195,6 @@ ${existingChannel}`,
                     ]
                 });
 
-            console.log('channel created');
-
-            console.log('saving db');
-
             // SAVE DB
             await pool.query(
 
@@ -228,8 +219,6 @@ ${existingChannel}`,
                 ]
             );
 
-            console.log('db saved');
-
             const embed =
                 new EmbedBuilder()
 
@@ -247,8 +236,6 @@ Merci de décrire ton problème en détail.
 🛡️ Le staff sera averti dès ton premier message.`
                     );
 
-            console.log('sending message');
-
             await ticketChannel.send({
 
                 content:
@@ -256,8 +243,6 @@ Merci de décrire ton problème en détail.
 
                 embeds: [embed]
             });
-
-            console.log('message sent');
 
             await interaction.reply({
 
@@ -268,7 +253,6 @@ ${ticketChannel}`,
                 ephemeral: true
             });
 
-            console.log('interaction replied');
         }
     }
 };

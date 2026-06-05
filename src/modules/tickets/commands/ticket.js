@@ -7,6 +7,10 @@ const {
 const { pool } =
     require('../../../database/db');
 
+const {
+    requireBotPermission
+} = require('../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -121,6 +125,12 @@ module.exports = {
         // CLOSE
         if (subcommand === 'close') {
 
+            if (!await requireBotPermission(
+                interaction,
+                PermissionFlagsBits.ManageChannels,
+                'ManageChannels'
+            )) return;
+
             await pool.query(
 
                 `
@@ -161,19 +171,25 @@ module.exports = {
             if (ticketChannel) {
 
                 await ticketChannel.delete()
-                    .catch(() => {});
+                    .catch(error => {
+                        console.error(`Impossible de supprimer le salon ticket ${ticketChannel.id} :`, error);
+                    });
             }
 
             if (staffChannel) {
 
                 await staffChannel.delete()
-                    .catch(() => {});
+                    .catch(error => {
+                        console.error(`Impossible de supprimer le salon staff ${staffChannel.id} :`, error);
+                    });
             }
 
             if (voiceChannel) {
 
                 await voiceChannel.delete()
-                    .catch(() => {});
+                    .catch(error => {
+                        console.error(`Impossible de supprimer le salon vocal ${voiceChannel.id} :`, error);
+                    });
             }
 
             return;
@@ -214,6 +230,12 @@ module.exports = {
         // ADD
         if (subcommand === 'add') {
 
+            if (!await requireBotPermission(
+                interaction,
+                PermissionFlagsBits.ManageChannels,
+                'ManageChannels'
+            )) return;
+
             await ticketChannel.permissionOverwrites.edit(
 
                 membre.id,
@@ -235,6 +257,12 @@ module.exports = {
 
         // REMOVE
         if (subcommand === 'remove') {
+
+            if (!await requireBotPermission(
+                interaction,
+                PermissionFlagsBits.ManageChannels,
+                'ManageChannels'
+            )) return;
 
             await ticketChannel.permissionOverwrites.edit(
 

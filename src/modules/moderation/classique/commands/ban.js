@@ -7,6 +7,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -61,6 +65,12 @@ module.exports = {
             interaction.options.getString(
                 'raison'
             ) || 'Aucune raison fournie';
+
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.BanMembers,
+            'BanMembers'
+        )) return;
 
         // USER INTROUVABLE
         if (!user) {
@@ -168,7 +178,9 @@ deban-adg@afterproject.fr`
                     embeds: [embed]
                 });
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible d'envoyer le DM de ban à ${membre.id} :`, error);
+            }
         }
 
         // BAN PAR ID, FONCTIONNE AUSSI SI LA PERSONNE N'EST PAS SUR LE SERVEUR

@@ -6,6 +6,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 function convertirTemps(temps) {
 
     const regex = /^(\d+)(s|m|h)$/;
@@ -101,6 +105,12 @@ module.exports = {
         const channel =
             interaction.channel;
 
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.ManageChannels,
+            'ManageChannels'
+        )) return;
+
         // LOCK
         if (subcommand === 'lock') {
 
@@ -115,7 +125,9 @@ module.exports = {
                     }
                 );
 
-            } catch {
+            } catch (error) {
+
+                console.error(`Impossible de verrouiller le salon ${channel.id} :`, error);
 
                 return interaction.reply({
 
@@ -174,7 +186,9 @@ ${interaction.user}`,
                     }
                 );
 
-            } catch {
+            } catch (error) {
+
+                console.error(`Impossible de déverrouiller le salon ${channel.id} :`, error);
 
                 return interaction.reply({
 
@@ -261,7 +275,9 @@ ${interaction.user}`,
                     duree
                 );
 
-            } catch {
+            } catch (error) {
+
+                console.error(`Impossible de modifier le slowmode du salon ${channel.id} :`, error);
 
                 return interaction.reply({
 

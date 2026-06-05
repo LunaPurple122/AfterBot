@@ -6,6 +6,10 @@ const {
 const { pool } =
     require('../../../database/db');
 
+const {
+    requireBotPermission
+} = require('../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -215,6 +219,12 @@ ${roles}`,
         // VERIFIER
         if (subcommand === 'verifier') {
 
+            if (!await requireBotPermission(
+                interaction,
+                PermissionFlagsBits.ManageRoles,
+                'ManageRoles'
+            )) return;
+
             await interaction.reply({
 
                 content:
@@ -265,7 +275,9 @@ ${roles}`,
 
                         await member.roles.add(role);
 
-                    } catch {}
+                    } catch (error) {
+                        console.error(`Impossible d'ajouter l'autorôle ${autorole.role_id} à ${member.id} :`, error);
+                    }
 
                 }
 

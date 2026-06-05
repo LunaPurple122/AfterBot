@@ -11,7 +11,8 @@ module.exports = {
         if (oldMessage.partial) {
             try {
                 await oldMessage.fetch();
-            } catch {
+            } catch (error) {
+                console.error('Impossible de récupérer l’ancien message partiel :', error);
                 return;
             }
         }
@@ -19,7 +20,8 @@ module.exports = {
         if (newMessage.partial) {
             try {
                 await newMessage.fetch();
-            } catch {
+            } catch (error) {
+                console.error('Impossible de récupérer le nouveau message partiel :', error);
                 return;
             }
         }

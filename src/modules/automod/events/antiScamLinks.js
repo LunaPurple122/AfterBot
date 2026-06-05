@@ -85,7 +85,9 @@ module.exports = {
 
                 await message.delete();
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible de supprimer le message scam ${message.id} :`, error);
+            }
 
             // DM USER
             try {
@@ -115,16 +117,28 @@ contacte le staff du serveur.`
                     embeds: [embed]
                 });
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible d'envoyer le DM anti-scam à ${message.author.id} :`, error);
+            }
 
             // KICK
-            try {
+            if (
+                !message.guild.members.me.permissions.has(
+                    PermissionsBitField.Flags.KickMembers
+                )
+            ) {
+
+                console.error('Permission bot manquante pour kick anti-scam : KickMembers');
+
+            } else try {
 
                 await message.member.kick(
                     'Automod : lien frauduleux détecté'
                 );
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible de kick ${message.author.id} après lien frauduleux :`, error);
+            }
 
             // LOG
             const logsChannel =

@@ -1,9 +1,23 @@
 const {
     Events,
-    AuditLogEvent
+    AuditLogEvent,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { envoyerLog } = require('../core/logger');
+const { botHasGuildPermission } = require('../core/permissions');
+
+function canFetchAuditLogs(guild, context) {
+    if (
+        botHasGuildPermission(
+            guild,
+            PermissionFlagsBits.ViewAuditLog
+        )
+    ) return true;
+
+    console.error(`Permission bot manquante pour les audit logs ${context} : ViewAuditLog`);
+    return false;
+}
 
 module.exports = {
 
@@ -33,7 +47,7 @@ module.exports = {
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(newMember.guild, 'MemberRoleUpdate')) try {
 
                 const fetchedLogs = await newMember.guild.fetchAuditLogs({
                     limit: 1,
@@ -50,7 +64,9 @@ module.exports = {
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs MemberRoleUpdate :', error);
+            }
 
             let description = `👤 Membre : ${newMember.user}\n\n`;
 

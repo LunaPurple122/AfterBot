@@ -1,5 +1,6 @@
 const {
     Events,
+    PermissionFlagsBits,
     AttachmentBuilder
 } = require('discord.js');
 
@@ -11,6 +12,10 @@ const {
 } = require(
     '../helpers/transcript'
 );
+
+const {
+    requireBotPermission
+} = require('../../../core/permissions');
 
 module.exports = {
 
@@ -85,9 +90,17 @@ module.exports = {
                 configResult.rows[0];
 
             const logsChannel =
-                interaction.guild.channels.cache.get(
-                    config.logs_channel_id
-                );
+                config?.logs_channel_id
+                    ? interaction.guild.channels.cache.get(
+                        config.logs_channel_id
+                    )
+                    : null;
+
+            if (!await requireBotPermission(
+                interaction,
+                PermissionFlagsBits.ManageChannels,
+                'ManageChannels'
+            )) return;
 
             // SAVE CLOSE
             await pool.query(
@@ -218,19 +231,25 @@ ${reason}`,
             if (ticketChannel) {
 
                 await ticketChannel.delete()
-                    .catch(() => {});
+                    .catch(error => {
+                        console.error(`Impossible de supprimer le salon ticket ${ticketChannel.id} :`, error);
+                    });
             }
 
             if (staffChannel) {
 
                 await staffChannel.delete()
-                    .catch(() => {});
+                    .catch(error => {
+                        console.error(`Impossible de supprimer le salon staff ${staffChannel.id} :`, error);
+                    });
             }
 
             if (voiceChannel) {
 
                 await voiceChannel.delete()
-                    .catch(() => {});
+                    .catch(error => {
+                        console.error(`Impossible de supprimer le salon vocal ${voiceChannel.id} :`, error);
+                    });
             }
         }
     }

@@ -1,9 +1,23 @@
 const {
     Events,
-    AuditLogEvent
+    AuditLogEvent,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { envoyerLog } = require('../core/logger');
+const { botHasGuildPermission } = require('../core/permissions');
+
+function canFetchAuditLogs(guild, context) {
+    if (
+        botHasGuildPermission(
+            guild,
+            PermissionFlagsBits.ViewAuditLog
+        )
+    ) return true;
+
+    console.error(`Permission bot manquante pour les audit logs ${context} : ViewAuditLog`);
+    return false;
+}
 
 module.exports = {
 
@@ -17,7 +31,7 @@ module.exports = {
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(channel.guild, 'ChannelCreate')) try {
 
                 const fetchedLogs = await channel.guild.fetchAuditLogs({
                     limit: 1,
@@ -34,7 +48,9 @@ module.exports = {
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs ChannelCreate :', error);
+            }
 
             await envoyerLog(channel.client, channel.guild.id, {
 
@@ -69,7 +85,7 @@ ${moderateur
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(channel.guild, 'ChannelDelete')) try {
 
                 const fetchedLogs = await channel.guild.fetchAuditLogs({
                     limit: 1,
@@ -86,7 +102,9 @@ ${moderateur
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs ChannelDelete :', error);
+            }
 
             await envoyerLog(channel.client, channel.guild.id, {
 
@@ -121,7 +139,7 @@ ${moderateur
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(newChannel.guild, 'ChannelUpdate')) try {
 
                 const fetchedLogs = await newChannel.guild.fetchAuditLogs({
                     limit: 1,
@@ -138,7 +156,9 @@ ${moderateur
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs ChannelUpdate :', error);
+            }
 
             if (oldChannel.name === newChannel.name) return;
 

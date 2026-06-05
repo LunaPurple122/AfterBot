@@ -2,6 +2,7 @@ const {
     Events,
     ChannelType,
     PermissionsBitField,
+    PermissionFlagsBits,
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
@@ -13,6 +14,10 @@ const {
 
 const { pool } =
     require('../../../database/db');
+
+const {
+    requireBotPermission
+} = require('../../../core/permissions');
 
 module.exports = {
 
@@ -153,10 +158,32 @@ module.exports = {
                 const config =
                     configResult.rows[0];
 
+                if (!config) {
+
+                    return interaction.reply({
+
+                        content:
+                            '❌ Le système ticket n’est pas configuré.',
+
+                        ephemeral: true
+                    });
+                }
+
                 const staffRole =
                     interaction.guild.roles.cache.get(
                         config.staff_role_id
                     );
+
+                if (!staffRole) {
+
+                    return interaction.reply({
+
+                        content:
+                            '❌ Rôle staff introuvable.',
+
+                        ephemeral: true
+                    });
+                }
 
                 let staffChannel =
                     interaction.guild.channels.cache.get(
@@ -165,6 +192,12 @@ module.exports = {
 
                 // CREATE STAFF CHANNEL
                 if (!staffChannel) {
+
+                    if (!await requireBotPermission(
+                        interaction,
+                        PermissionFlagsBits.ManageChannels,
+                        'ManageChannels'
+                    )) return;
 
                     const member =
                         await interaction.guild.members.fetch(
@@ -378,6 +411,17 @@ ${existingVoice}`,
                 const config =
                     configResult.rows[0];
 
+                if (!config) {
+
+                    return interaction.reply({
+
+                        content:
+                            '❌ Le système ticket n’est pas configuré.',
+
+                        ephemeral: true
+                    });
+                }
+
                 const member =
                     await interaction.guild.members.fetch(
                         ticket.membre_id
@@ -387,6 +431,23 @@ ${existingVoice}`,
                     interaction.guild.roles.cache.get(
                         config.staff_role_id
                     );
+
+                if (!staffRole) {
+
+                    return interaction.reply({
+
+                        content:
+                            '❌ Rôle staff introuvable.',
+
+                        ephemeral: true
+                    });
+                }
+
+                if (!await requireBotPermission(
+                    interaction,
+                    PermissionFlagsBits.ManageChannels,
+                    'ManageChannels'
+                )) return;
 
                 const voice =
                     await interaction.guild.channels.create({

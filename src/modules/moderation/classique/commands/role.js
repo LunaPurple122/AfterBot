@@ -6,6 +6,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -110,6 +114,12 @@ module.exports = {
                 'role'
             );
 
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.ManageRoles,
+            'ManageRoles'
+        )) return;
+
         // MEMBRE INTROUVABLE
         if (!membre) {
 
@@ -177,7 +187,9 @@ module.exports = {
 
                 await membre.roles.add(role);
 
-            } catch {
+            } catch (error) {
+
+                console.error(`Impossible d'ajouter le rôle ${role.id} à ${membre.id} :`, error);
 
                 return interaction.reply({
 
@@ -253,7 +265,9 @@ ${interaction.user}`,
 
                 await membre.roles.remove(role);
 
-            } catch {
+            } catch (error) {
+
+                console.error(`Impossible de retirer le rôle ${role.id} à ${membre.id} :`, error);
 
                 return interaction.reply({
 

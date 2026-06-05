@@ -1,9 +1,23 @@
 const {
     Events,
-    AuditLogEvent
+    AuditLogEvent,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { envoyerLog } = require('../core/logger');
+const { botHasGuildPermission } = require('../core/permissions');
+
+function canFetchAuditLogs(guild, context) {
+    if (
+        botHasGuildPermission(
+            guild,
+            PermissionFlagsBits.ViewAuditLog
+        )
+    ) return true;
+
+    console.error(`Permission bot manquante pour les audit logs ${context} : ViewAuditLog`);
+    return false;
+}
 
 module.exports = {
 
@@ -15,7 +29,7 @@ module.exports = {
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(role.guild, 'RoleCreate')) try {
 
                 const fetchedLogs = await role.guild.fetchAuditLogs({
                     limit: 1,
@@ -32,7 +46,9 @@ module.exports = {
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs RoleCreate :', error);
+            }
 
             await envoyerLog(role.client, role.guild.id, {
 
@@ -62,7 +78,7 @@ ${moderateur
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(role.guild, 'RoleDelete')) try {
 
                 const fetchedLogs = await role.guild.fetchAuditLogs({
                     limit: 1,
@@ -79,7 +95,9 @@ ${moderateur
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs RoleDelete :', error);
+            }
 
             await envoyerLog(role.client, role.guild.id, {
 
@@ -109,7 +127,7 @@ ${moderateur
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(newRole.guild, 'RoleUpdate')) try {
 
                 const fetchedLogs = await newRole.guild.fetchAuditLogs({
                     limit: 1,
@@ -126,7 +144,9 @@ ${moderateur
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs RoleUpdate :', error);
+            }
 
             if (oldRole.name === newRole.name) return;
 

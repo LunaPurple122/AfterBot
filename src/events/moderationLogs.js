@@ -1,9 +1,23 @@
 const {
     Events,
-    AuditLogEvent
+    AuditLogEvent,
+    PermissionFlagsBits
 } = require('discord.js');
 
 const { envoyerLog } = require('../core/logger');
+const { botHasGuildPermission } = require('../core/permissions');
+
+function canFetchAuditLogs(guild, context) {
+    if (
+        botHasGuildPermission(
+            guild,
+            PermissionFlagsBits.ViewAuditLog
+        )
+    ) return true;
+
+    console.error(`Permission bot manquante pour les audit logs ${context} : ViewAuditLog`);
+    return false;
+}
 
 module.exports = {
 
@@ -16,7 +30,7 @@ module.exports = {
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(ban.guild, 'MemberBanAdd')) try {
 
                 const fetchedLogs = await ban.guild.fetchAuditLogs({
                     limit: 1,
@@ -33,7 +47,9 @@ module.exports = {
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs MemberBanAdd :', error);
+            }
 
             await envoyerLog(ban.client, ban.guild.id, {
 
@@ -68,7 +84,7 @@ ${ban.reason || '*Aucune raison fournie*'}`,
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(ban.guild, 'MemberBanRemove')) try {
 
                 const fetchedLogs = await ban.guild.fetchAuditLogs({
                     limit: 1,
@@ -85,7 +101,9 @@ ${ban.reason || '*Aucune raison fournie*'}`,
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs MemberBanRemove :', error);
+            }
 
             await envoyerLog(ban.client, ban.guild.id, {
 
@@ -115,7 +133,7 @@ ${moderateur || 'Inconnu'}`,
 
         async execute(member) {
 
-            try {
+            if (canFetchAuditLogs(member.guild, 'MemberKick')) try {
 
                 const fetchedLogs = await member.guild.fetchAuditLogs({
                     limit: 1,
@@ -150,7 +168,9 @@ ${log.reason || '*Aucune raison fournie*'}`,
                     });
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs MemberKick :', error);
+            }
         }
     },
 
@@ -169,7 +189,7 @@ ${log.reason || '*Aucune raison fournie*'}`,
 
                 let moderateur = null;
 
-                try {
+                if (canFetchAuditLogs(newMember.guild, 'MemberTimeout')) try {
 
                     const fetchedLogs = await newMember.guild.fetchAuditLogs({
                         limit: 1,
@@ -186,7 +206,9 @@ ${log.reason || '*Aucune raison fournie*'}`,
                         moderateur = log.executor;
                     }
 
-                } catch {}
+                } catch (error) {
+                    console.error('Impossible de récupérer les audit logs timeout :', error);
+                }
 
                 await envoyerLog(newMember.client, newMember.guild.id, {
 
@@ -216,7 +238,7 @@ ${moderateur || 'Inconnu'}
 
                 let moderateur = null;
 
-                try {
+                if (canFetchAuditLogs(newMember.guild, 'MemberUntimeout')) try {
 
                     const fetchedLogs = await newMember.guild.fetchAuditLogs({
                         limit: 1,
@@ -233,7 +255,9 @@ ${moderateur || 'Inconnu'}
                         moderateur = log.executor;
                     }
 
-                } catch {}
+                } catch (error) {
+                    console.error('Impossible de récupérer les audit logs untimeout :', error);
+                }
 
                 await envoyerLog(newMember.client, newMember.guild.id, {
 
@@ -265,7 +289,7 @@ ${moderateur || 'Inconnu'}`,
 
             let moderateur = null;
 
-            try {
+            if (canFetchAuditLogs(channel.guild, 'MessageBulkDelete')) try {
 
                 const fetchedLogs = await channel.guild.fetchAuditLogs({
                     limit: 1,
@@ -281,7 +305,9 @@ ${moderateur || 'Inconnu'}`,
                     moderateur = log.executor;
                 }
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de récupérer les audit logs MessageBulkDelete :', error);
+            }
 
             await envoyerLog(channel.client, channel.guild.id, {
 

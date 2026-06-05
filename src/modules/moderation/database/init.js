@@ -25,6 +25,16 @@ async function initModerationTables() {
         );
     `);
 
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_warns_serveur_utilisateur
+        ON warns (serveur_id, utilisateur_id);
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_warns_serveur_created
+        ON warns (serveur_id, cree_le DESC);
+    `);
+
     console.log(
         '✅ Table warns prête'
     );

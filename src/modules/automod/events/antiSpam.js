@@ -105,11 +105,21 @@ module.exports = {
 
                     await entry.message.delete();
 
-                } catch {}
+                } catch (error) {
+                    console.error(`Impossible de supprimer le message spam ${entry.message.id} :`, error);
+                }
             }
 
             // TIMEOUT
-            try {
+            if (
+                !message.guild.members.me.permissions.has(
+                    PermissionsBitField.Flags.ModerateMembers
+                )
+            ) {
+
+                console.error('Permission bot manquante pour timeout anti-spam : ModerateMembers');
+
+            } else try {
 
                 await message.member.timeout(
 
@@ -120,7 +130,9 @@ module.exports = {
                     'Automod : spam détecté'
                 );
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible de timeout ${message.author.id} après spam :`, error);
+            }
 
             // LOG
             const logsChannel =

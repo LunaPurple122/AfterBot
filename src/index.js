@@ -1,5 +1,8 @@
 require('dotenv').config();
 
+const { validateEnv } = require('./core/env');
+validateEnv();
+
 const { testDatabaseConnection } = require('./database/db');
 const { initDatabase } = require('./database/init');
 const { envoyerLog } = require('./core/logger');
@@ -17,14 +20,19 @@ const {
 
 const client = new Client({
     intents: [
-        GatewayIntentBits.GuildExpressions,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildModeration,
+        // Guilds: slash commands, salons, rôles et configuration serveur.
         GatewayIntentBits.Guilds,
+        // GuildMessages + MessageContent: automod, captcha, tickets et logs de messages.
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        // GuildMembers: bienvenue/départ, captcha, autoroles, modération membres.
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildPresences
+        // GuildModeration: bans, unbans et audit logs de modération.
+        GatewayIntentBits.GuildModeration,
+        // GuildVoiceStates: logs des connexions, départs et déplacements vocaux.
+        GatewayIntentBits.GuildVoiceStates,
+        // GuildExpressions: logs emojis/stickers.
+        GatewayIntentBits.GuildExpressions
     ],
 
     partials: [
@@ -70,6 +78,38 @@ function recupererFichiers(dossier) {
     return fichiers;
 }
 
+function normaliserEvents(loadedFile) {
+    if (
+        loadedFile &&
+        loadedFile.name &&
+        loadedFile.execute
+    ) {
+        return [loadedFile];
+    }
+
+    return Object.values(loadedFile);
+}
+
+function registerEvent(event) {
+    const handler = async (...args) => {
+        try {
+            await event.execute(...args);
+        } catch (error) {
+            console.error(
+                `Erreur dans l'event ${event.name} :`,
+                error
+            );
+        }
+    };
+
+    if (event.once) {
+        client.once(event.name, handler);
+        return;
+    }
+
+    client.on(event.name, handler);
+}
+
 // COMMANDES
 const commandFiles =
     recupererFichiers(modulesPath);
@@ -108,13 +148,11 @@ if (fs.existsSync(eventsPath)) {
         const filePath =
             path.join(eventsPath, file);
 
-        console.log(filePath);
-
         const loadedFile =
             require(filePath);
 
         const events =
-            Object.values(loadedFile);
+            normaliserEvents(loadedFile);
 
         for (const event of events) {
 
@@ -123,26 +161,7 @@ if (fs.existsSync(eventsPath)) {
                 !event.execute
             ) continue;
 
-            if (event.once) {
-
-                client.once(
-
-                    event.name,
-
-                    (...args) =>
-                        event.execute(...args)
-                );
-
-            } else {
-
-                client.on(
-
-                    event.name,
-
-                    (...args) =>
-                        event.execute(...args)
-                );
-            }
+            registerEvent(event);
 
             console.log(
 `✅ Event chargé : ${event.name}`
@@ -167,7 +186,7 @@ for (const filePath of moduleEventFiles) {
         require(filePath);
 
     const events =
-        Object.values(loadedFile);
+        normaliserEvents(loadedFile);
 
     for (const event of events) {
 
@@ -176,26 +195,7 @@ for (const filePath of moduleEventFiles) {
             !event.execute
         ) continue;
 
-        if (event.once) {
-
-            client.once(
-
-                event.name,
-
-                (...args) =>
-                    event.execute(...args)
-            );
-
-        } else {
-
-            client.on(
-
-                event.name,
-
-                (...args) =>
-                    event.execute(...args)
-            );
-        }
+        registerEvent(event);
 
         console.log(
 `✅ Event chargé : ${event.name}`

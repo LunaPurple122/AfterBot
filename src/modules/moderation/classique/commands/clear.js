@@ -6,6 +6,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -60,14 +64,20 @@ module.exports = {
 
     async execute(interaction) {
 
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.ManageMessages,
+            'ManageMessages'
+        )) return;
+
         await interaction.deferReply({
             ephemeral: true
         });
 
-        const nombre =
+        const nombreOption =
             interaction.options.getInteger(
                 'nombre'
-            ) || 999999;
+            );
 
         const membre =
             interaction.options.getMember(
@@ -82,12 +92,26 @@ module.exports = {
         let totalSupprime = 0;
 
         // ALL SERVER MEMBER
-        if (all && membre) {
+        if (all) {
+
+            if (!membre) {
+
+                return interaction.editReply({
+
+                    content:
+                        '❌ /clear all doit cibler un membre.'
+                });
+            }
+
+            const limiteGlobale =
+                Math.min(nombreOption || 100, 500);
 
             for (
                 const channel
                 of interaction.guild.channels.cache.values()
             ) {
+
+                if (totalSupprime >= limiteGlobale) break;
 
                 if (!channel.isTextBased()) continue;
 
@@ -107,11 +131,15 @@ module.exports = {
                                 msg =>
                                     msg.author.id ===
                                     membre.id
-                            );
+                            )
+                                .first(
+                                    limiteGlobale -
+                                    totalSupprime
+                                );
 
                         for (
                             const msg
-                            of messages.values()
+                            of messages
                         ) {
 
                             try {
@@ -120,14 +148,19 @@ module.exports = {
 
                                 totalSupprime++;
 
-                            } catch {}
+                            } catch (error) {
+                                console.error(`Impossible de supprimer le message ${msg.id} :`, error);
+                            }
                         }
 
                     } while (
-                        fetched.size >= 100
+                        fetched.size >= 100 &&
+                        totalSupprime < limiteGlobale
                     );
 
-                } catch {}
+                } catch (error) {
+                    console.error(`Impossible de parcourir le salon ${channel.id} pour clear global :`, error);
+                }
             }
 
             await interaction.editReply({
@@ -174,7 +207,7 @@ ${totalSupprime}`,
         }
 
         // CLEAR CHANNEL
-        let restant = nombre;
+        let restant = nombreOption || 100;
 
         while (restant > 0) {
 
@@ -226,7 +259,9 @@ ${totalSupprime}`,
                 totalSupprime +=
                     recents.size;
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible de supprimer les messages du salon ${interaction.channel.id} :`, error);
+            }
 
             restant -= fetched.size;
 

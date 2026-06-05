@@ -247,7 +247,9 @@ ${totalWarns}`
                     embeds: [embed]
                 });
 
-            } catch {}
+            } catch (error) {
+                console.error(`Impossible d'envoyer le DM de warn à ${membre.id} :`, error);
+            }
 
             // REPONSE
             await interaction.reply({

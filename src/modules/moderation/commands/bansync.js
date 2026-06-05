@@ -62,7 +62,9 @@ module.exports = {
             setTimeout(() => {
                 try {
                     fs.unlinkSync(filePath);
-                } catch {}
+                } catch (error) {
+                    console.error(`Impossible de supprimer l'export bans ${filePath} :`, error);
+                }
             }, 5000);
 
             return;
@@ -92,7 +94,8 @@ module.exports = {
                     });
 
                     succes++;
-                } catch {
+                } catch (error) {
+                    console.error(`Impossible d'importer le ban ${ban.id} :`, error);
                     erreurs++;
                 }
             }

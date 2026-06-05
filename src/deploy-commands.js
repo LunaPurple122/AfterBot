@@ -1,5 +1,8 @@
 require('dotenv').config();
 
+const { validateEnv } = require('./core/env');
+validateEnv();
+
 const fs = require('fs');
 const path = require('path');
 

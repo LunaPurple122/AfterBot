@@ -6,6 +6,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -56,6 +60,12 @@ module.exports = {
                 'raison'
             ) || 'Aucune raison fournie';
 
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.BanMembers,
+            'BanMembers'
+        )) return;
+
         const bans =
             await interaction.guild.bans.fetch();
 
@@ -99,7 +109,9 @@ module.exports = {
                 `${raison} | Modérateur : ${interaction.user.tag}`
             );
 
-        } catch {
+        } catch (error) {
+
+            console.error(`Impossible de débannir ${banTrouve.user.id} :`, error);
 
             return interaction.reply({
 

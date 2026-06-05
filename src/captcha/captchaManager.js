@@ -1,6 +1,7 @@
 const {
     ChannelType,
     PermissionsBitField,
+    PermissionFlagsBits,
     AttachmentBuilder
 } = require('discord.js');
 
@@ -35,6 +36,28 @@ async function creerCaptcha(member) {
     if (!config) return;
 
     if (!config.captcha_actif) return;
+
+    const botMember =
+        member.guild.members.me;
+
+    if (
+        !botMember.permissions.has(
+            PermissionFlagsBits.ManageChannels
+        )
+    ) {
+        console.error('Permission bot manquante pour créer le salon captcha : ManageChannels');
+        return;
+    }
+
+    if (
+        config.role_non_verifie_id &&
+        !botMember.permissions.has(
+            PermissionFlagsBits.ManageRoles
+        )
+    ) {
+        console.error('Permission bot manquante pour gérer les rôles captcha : ManageRoles');
+        return;
+    }
 
     // ROLE NON VERIFIE
     if (config.role_non_verifie_id) {
@@ -170,7 +193,9 @@ async function verifierCaptcha(message) {
                     'Captcha échoué'
                 );
 
-            } catch {}
+            } catch (error) {
+                console.error('Impossible de kick après échec captcha :', error);
+            }
 
             supprimerCaptcha(
                 message.author.id
@@ -200,6 +225,30 @@ ${5 - updatedCaptcha.essais}`
     );
 
     const config = result.rows[0];
+
+    if (!config) return false;
+
+    const botMember =
+        message.guild.members.me;
+
+    if (
+        (
+            config.role_non_verifie_id ||
+            config.role_membre_id
+        ) &&
+        !botMember.permissions.has(
+            PermissionFlagsBits.ManageRoles
+        )
+    ) {
+
+        console.error('Permission bot manquante pour valider le captcha : ManageRoles');
+
+        await message.channel.send(
+            '❌ Vérification impossible : permission bot manquante.'
+        );
+
+        return true;
+    }
 
     const membre =
         await message.guild.members.fetch(
@@ -252,7 +301,9 @@ ${5 - updatedCaptcha.essais}`
 
             await message.channel.delete();
 
-        } catch {}
+        } catch (error) {
+            console.error('Impossible de supprimer le salon captcha :', error);
+        }
 
     }, 3000);
 

@@ -153,6 +153,13 @@ module.exports = {
         const subcommand = interaction.options.getSubcommand();
         const serveurId = interaction.guild.id;
 
+        await pool.query(`
+            INSERT INTO serveurs (serveur_id, nom)
+            VALUES ($1, $2)
+            ON CONFLICT (serveur_id)
+            DO NOTHING
+        `, [serveurId, interaction.guild.name]);
+
         // LOGS
         if (subcommand === 'logs') {
 

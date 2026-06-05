@@ -6,25 +6,6 @@ const {
 const { pool } =
     require('../../../database/db');
 
-async function initTicketPingRolesTable() {
-
-    await pool.query(`
-
-        CREATE TABLE IF NOT EXISTS ticket_ping_roles (
-
-            id SERIAL PRIMARY KEY,
-
-            serveur_id VARCHAR(32)
-                NOT NULL,
-
-            role_id VARCHAR(32)
-                NOT NULL,
-
-            UNIQUE (serveur_id, role_id)
-        );
-    `);
-}
-
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -97,8 +78,6 @@ module.exports = {
         ),
 
     async execute(interaction) {
-
-        await initTicketPingRolesTable();
 
         const subcommand =
             interaction.options.getSubcommand();

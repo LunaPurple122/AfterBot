@@ -136,6 +136,67 @@ module.exports = {
                 .setRequired(true)
         )
 
+        // RAID JOIN
+        .addBooleanOption(option =>
+            option
+
+                .setName('anti_raid_join')
+
+                .setDescription(
+                    'Activer l’anti raid join'
+                )
+
+                .setRequired(true)
+        )
+
+        .addIntegerOption(option =>
+            option
+
+                .setName('raid_join_limit')
+
+                .setDescription(
+                    'Nombre d’arrivées max'
+                )
+
+                .setMinValue(2)
+
+                .setMaxValue(100)
+
+                .setRequired(true)
+        )
+
+        .addIntegerOption(option =>
+            option
+
+                .setName('raid_join_interval')
+
+                .setDescription(
+                    'Intervalle anti raid en secondes'
+                )
+
+                .setMinValue(1)
+
+                .setMaxValue(300)
+
+                .setRequired(true)
+        )
+
+        .addIntegerOption(option =>
+            option
+
+                .setName('raid_lockdown')
+
+                .setDescription(
+                    'Durée du lockdown en minutes'
+                )
+
+                .setMinValue(1)
+
+                .setMaxValue(1440)
+
+                .setRequired(true)
+        )
+
         // LOGS
         .addChannelOption(option =>
             option
@@ -199,6 +260,26 @@ module.exports = {
                 'anti_scam_links'
             );
 
+        const antiRaidJoin =
+            interaction.options.getBoolean(
+                'anti_raid_join'
+            );
+
+        const raidJoinLimit =
+            interaction.options.getInteger(
+                'raid_join_limit'
+            );
+
+        const raidJoinInterval =
+            interaction.options.getInteger(
+                'raid_join_interval'
+            );
+
+        const raidLockdown =
+            interaction.options.getInteger(
+                'raid_lockdown'
+            );
+
         const logsChannel =
             interaction.options.getChannel(
                 'logs_channel'
@@ -224,6 +305,11 @@ module.exports = {
 
                     anti_scam_links_enabled,
 
+                    anti_raid_join_enabled,
+                    raid_join_limit,
+                    raid_join_interval,
+                    raid_lockdown_minutes,
+
                     logs_channel_id
 
                 )
@@ -233,7 +319,9 @@ module.exports = {
                     $4, $5,
                     $6, $7,
                     $8, $9,
-                    $10
+                    $10, $11,
+                    $12, $13,
+                    $14
                 )
 
                 ON CONFLICT (serveur_id)
@@ -264,6 +352,18 @@ module.exports = {
                     anti_scam_links_enabled =
                         EXCLUDED.anti_scam_links_enabled,
 
+                    anti_raid_join_enabled =
+                        EXCLUDED.anti_raid_join_enabled,
+
+                    raid_join_limit =
+                        EXCLUDED.raid_join_limit,
+
+                    raid_join_interval =
+                        EXCLUDED.raid_join_interval,
+
+                    raid_lockdown_minutes =
+                        EXCLUDED.raid_lockdown_minutes,
+
                     logs_channel_id =
                         EXCLUDED.logs_channel_id
                 `,
@@ -281,6 +381,11 @@ module.exports = {
                     mentionTimeout,
 
                     antiScamLinks,
+
+                    antiRaidJoin,
+                    raidJoinLimit,
+                    raidJoinInterval,
+                    raidLockdown,
 
                     logsChannel.id
                 ]
@@ -327,6 +432,18 @@ ${mentionTimeout} minutes
 
 🔗 Anti scam links :
 ${antiScamLinks ? 'Activé' : 'Désactivé'}
+
+🛡️ Anti raid join :
+${antiRaidJoin ? 'Activé' : 'Désactivé'}
+
+👥 Limite arrivées :
+${raidJoinLimit}
+
+⏱️ Intervalle raid :
+${raidJoinInterval} secondes
+
+🔒 Lockdown :
+${raidLockdown} minutes
 
 📝 Logs :
 ${logsChannel}`,

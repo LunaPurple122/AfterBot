@@ -6,6 +6,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -52,6 +56,12 @@ module.exports = {
         const raison =
             interaction.options.getString('raison') ||
             'Aucune raison fournie';
+
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.BanMembers,
+            'BanMembers'
+        )) return;
 
         const ids =
             idsRaw

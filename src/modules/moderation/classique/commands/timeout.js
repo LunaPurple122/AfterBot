@@ -7,6 +7,10 @@ const {
 const { envoyerLog } =
     require('../../../../core/logger');
 
+const {
+    requireBotPermission
+} = require('../../../../core/permissions');
+
 function convertirTemps(temps) {
 
     const regex = /^(\d+)(s|m|h|d)$/;
@@ -109,6 +113,12 @@ module.exports = {
             interaction.options.getString(
                 'raison'
             ) || 'Aucune raison fournie';
+
+        if (!await requireBotPermission(
+            interaction,
+            PermissionFlagsBits.ModerateMembers,
+            'ModerateMembers'
+        )) return;
 
         const duree =
             convertirTemps(dureeInput);
@@ -244,7 +254,9 @@ ${raison}`
                 embeds: [embed]
             });
 
-        } catch {}
+        } catch (error) {
+            console.error(`Impossible d'envoyer le DM de timeout à ${membre.id} :`, error);
+        }
 
         // TIMEOUT
         try {
@@ -256,7 +268,9 @@ ${raison}`
                 `${raison} | Modérateur : ${interaction.user.tag}`
             );
 
-        } catch {
+        } catch (error) {
+
+            console.error(`Impossible de timeout ${membre.id} :`, error);
 
             return interaction.reply({
 

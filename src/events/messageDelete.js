@@ -14,7 +14,8 @@ module.exports = {
             if (message.partial) {
                 try {
                     await message.fetch();
-                } catch {
+                } catch (error) {
+                    console.error('Impossible de récupérer le message supprimé partiel :', error);
                     return;
                 }
             }
