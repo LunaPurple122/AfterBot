@@ -1,5 +1,6 @@
 const {
     ChannelType,
+    MessageFlags,
     PermissionFlagsBits,
     SlashCommandBuilder
 } = require('discord.js');
@@ -72,6 +73,16 @@ function formatSyncResult(result) {
 }
 
 async function replyWithSync(interaction, rolemenu, content) {
+    if (
+        !interaction.deferred &&
+        !interaction.replied
+    ) {
+        await interaction.deferReply({
+            flags:
+                MessageFlags.Ephemeral
+        });
+    }
+
     const syncResult =
         await syncRoleMenu(
             interaction.client,
@@ -79,10 +90,9 @@ async function replyWithSync(interaction, rolemenu, content) {
             rolemenu.id
         );
 
-    return interaction.reply({
+    return interaction.editReply({
         content:
-            `${content}${formatSyncResult(syncResult)}`,
-        ephemeral: true
+            `${content}${formatSyncResult(syncResult)}`
     });
 }
 
@@ -445,6 +455,11 @@ module.exports = {
                 'ManageRoles'
             )) return;
 
+            await interaction.deferReply({
+                flags:
+                    MessageFlags.Ephemeral
+            });
+
             const rolemenuId =
                 getRolemenuId(interaction);
 
@@ -456,12 +471,10 @@ module.exports = {
 
             if (!rolemenu) {
 
-                return interaction.reply({
+                return interaction.editReply({
 
                     content:
-                        '❌ Rolemenu introuvable.',
-
-                    ephemeral: true
+                        '❌ Rolemenu introuvable.'
                 });
             }
 
@@ -483,24 +496,20 @@ module.exports = {
                     message.id
                 );
 
-                return interaction.reply({
+                return interaction.editReply({
 
                     content:
-                        `✅ Rolemenu envoyé dans ${channel}.`,
-
-                    ephemeral: true
+                        `✅ Rolemenu envoyé dans ${channel}.`
                 });
 
             } catch (error) {
 
                 console.error(`Erreur envoi rolemenu ${rolemenuId}:`, error);
 
-                return interaction.reply({
+                return interaction.editReply({
 
                     content:
-                        `❌ ${humanSyncError(error)}`,
-
-                    ephemeral: true
+                        `❌ ${humanSyncError(error)}`
                 });
             }
         }
@@ -810,6 +819,11 @@ ${roles}`,
             const rolemenuId =
                 getRolemenuId(interaction);
 
+            await interaction.deferReply({
+                flags:
+                    MessageFlags.Ephemeral
+            });
+
             try {
 
                 const syncResult =
@@ -821,32 +835,34 @@ ${roles}`,
 
                 if (!syncResult.synced) {
 
-                    return interaction.reply({
+                    return interaction.editReply({
                         content:
-                            `❌ ${syncResult.message}`,
-                        ephemeral: true
+                            `❌ ${syncResult.message}`
                     });
                 }
 
-                return interaction.reply({
+                return interaction.editReply({
                     content:
-                        `✅ Rolemenu synchronisé : #${rolemenuId}`,
-                    ephemeral: true
+                        `✅ Rolemenu synchronisé : #${rolemenuId}`
                 });
 
             } catch (error) {
 
                 console.error(`Erreur sync rolemenu ${rolemenuId}:`, error);
 
-                return interaction.reply({
+                return interaction.editReply({
                     content:
-                        `❌ ${humanSyncError(error)}`,
-                    ephemeral: true
+                        `❌ ${humanSyncError(error)}`
                 });
             }
         }
 
         if (subcommand === 'sync_all') {
+
+            await interaction.deferReply({
+                flags:
+                    MessageFlags.Ephemeral
+            });
 
             const rolemenus =
                 await listRolemenus(guildId, true);
@@ -882,13 +898,12 @@ ${roles}`,
                 }
             }
 
-            return interaction.reply({
+            return interaction.editReply({
                 content:
 `✅ Synchronisation terminée.
 
 Réussites : ${success}
-Échecs : ${failed}`,
-                ephemeral: true
+Échecs : ${failed}`
             });
         }
     }

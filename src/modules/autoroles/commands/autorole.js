@@ -233,6 +233,24 @@ ${roles}`,
                 ephemeral: true
             });
 
+            try {
+
+                await interaction.guild.members.fetch();
+
+            } catch (error) {
+
+                console.error(
+                    `Impossible de charger tous les membres du serveur ${serveurId} :`,
+                    error
+                );
+
+                return interaction.editReply({
+
+                    content:
+                        '❌ Impossible de charger tous les membres du serveur.'
+                });
+            }
+
             const result =
                 await pool.query(
                     `SELECT *
@@ -244,7 +262,23 @@ ${roles}`,
             const autoroles =
                 result.rows;
 
+            if (
+                autoroles.length === 0
+            ) {
+
+                return interaction.editReply({
+
+                    content:
+                        '❌ Aucun autorôle configuré.'
+                });
+            }
+
             let membresVerifies = 0;
+            let rolesAjoutes = 0;
+            let echecs = 0;
+
+            const modifications = [];
+            const erreurs = [];
 
             for (
                 const member
@@ -252,6 +286,8 @@ ${roles}`,
             ) {
 
                 if (member.user.bot) continue;
+
+                const rolesAjoutesAuMembre = [];
 
                 for (
                     const autorole
@@ -275,14 +311,76 @@ ${roles}`,
 
                         await member.roles.add(role);
 
+                        rolesAjoutes++;
+
+                        rolesAjoutesAuMembre.push(
+                            role.toString()
+                        );
+
                     } catch (error) {
+
+                        echecs++;
+
                         console.error(`Impossible d'ajouter l'autorôle ${autorole.role_id} à ${member.id} :`, error);
+
+                        erreurs.push(
+                            `${member.user.tag} (${member.id}) : ${role.name}`
+                        );
                     }
 
                 }
 
+                if (
+                    rolesAjoutesAuMembre.length > 0
+                ) {
+
+                    modifications.push(
+                        `${member.user.tag} (${member.id}) : + ${rolesAjoutesAuMembre.join(', ')}`
+                    );
+                }
+
                 membresVerifies++;
             }
+
+            const lignesRapport = [];
+            let modificationsMasquees = 0;
+
+            for (
+                const modification
+                of modifications
+            ) {
+
+                const ligne =
+                    `- ${modification}`;
+
+                const rapportActuel =
+                    lignesRapport.join('\n');
+
+                if (
+                    rapportActuel.length + ligne.length > 1200
+                ) {
+
+                    modificationsMasquees++;
+                    continue;
+                }
+
+                lignesRapport.push(ligne);
+            }
+
+            const detailsModifications =
+                lignesRapport.length > 0
+                    ? lignesRapport.join('\n')
+                    : 'Aucun membre modifié.';
+
+            const detailsMasques =
+                modificationsMasquees > 0
+                    ? `\n... ${modificationsMasquees} modification(s) supplémentaire(s) non affichée(s).`
+                    : '';
+
+            const detailsErreurs =
+                erreurs.length > 0
+                    ? `\n\n⚠️ Erreurs :\n${erreurs.slice(0, 10).join('\n')}${erreurs.length > 10 ? `\n... ${erreurs.length - 10} erreur(s) supplémentaire(s).` : ''}`
+                    : '';
 
             return interaction.editReply({
 
@@ -290,7 +388,16 @@ ${roles}`,
 `✅ Vérification terminée.
 
 👥 Membres vérifiés :
-${membresVerifies}`
+${membresVerifies}
+
+🔧 Rôles ajoutés :
+${rolesAjoutes}
+
+❌ Échecs :
+${echecs}
+
+📝 Membres modifiés :
+${detailsModifications}${detailsMasques}${detailsErreurs}`
 
             });
         }

@@ -15,6 +15,7 @@ const {
     Collection,
     GatewayIntentBits,
     Events,
+    MessageFlags,
     Partials
 } = require('discord.js');
 
@@ -45,6 +46,163 @@ const client = new Client({
 client.commands = new Collection();
 
 const modulesPath = path.join(__dirname, 'modules');
+
+function isUnknownInteractionError(error) {
+    return (
+        error?.code === 10062 ||
+        String(error?.message || '')
+            .includes('Unknown interaction')
+    );
+}
+
+function normalizeInteractionOptions(options) {
+    if (
+        !options ||
+        typeof options !== 'object' ||
+        options.ephemeral !== true
+    ) {
+        return options;
+    }
+
+    const normalized = {
+        ...options
+    };
+
+    delete normalized.ephemeral;
+
+    normalized.flags =
+        Number(normalized.flags || 0) |
+        MessageFlags.Ephemeral;
+
+    return normalized;
+}
+
+function patchInteractionResponses(interaction) {
+    if (interaction.__safeResponsesPatched) {
+        return;
+    }
+
+    interaction.__safeResponsesPatched = true;
+
+    for (const methodName of [
+        'reply',
+        'followUp',
+        'deferReply'
+    ]) {
+        if (typeof interaction[methodName] !== 'function') {
+            continue;
+        }
+
+        const originalMethod =
+            interaction[methodName].bind(interaction);
+
+        interaction[methodName] = options =>
+            originalMethod(
+                normalizeInteractionOptions(options)
+            );
+    }
+}
+
+async function safeDefer(interaction) {
+    if (
+        interaction.deferred ||
+        interaction.replied
+    ) {
+        return true;
+    }
+
+    try {
+        await interaction.deferReply({
+            flags:
+                MessageFlags.Ephemeral
+        });
+
+        return true;
+
+    } catch (error) {
+        if (isUnknownInteractionError(error)) {
+            console.error(
+                `Interaction expirée avant defer /${interaction.commandName}:`,
+                error
+            );
+            return false;
+        }
+
+        console.error(
+            `Erreur defer interaction /${interaction.commandName}:`,
+            error
+        );
+        return false;
+    }
+}
+
+async function safeReply(interaction, options) {
+    const normalizedOptions =
+        normalizeInteractionOptions({
+            ...options,
+            flags:
+                Number(options?.flags || 0) |
+                MessageFlags.Ephemeral
+        });
+
+    try {
+        if (interaction.deferred && !interaction.replied) {
+            const editOptions = {
+                ...normalizedOptions
+            };
+
+            delete editOptions.flags;
+
+            return await interaction.editReply(editOptions);
+        }
+
+        if (interaction.replied) {
+            return await interaction.followUp(normalizedOptions);
+        }
+
+        return await interaction.reply(normalizedOptions);
+
+    } catch (error) {
+        if (isUnknownInteractionError(error)) {
+            console.error(
+                `Interaction expirée avant réponse /${interaction.commandName}:`,
+                error
+            );
+            return null;
+        }
+
+        console.error(
+            `Erreur réponse interaction /${interaction.commandName}:`,
+            error
+        );
+        return null;
+    }
+}
+
+process.on('unhandledRejection', error => {
+    console.error(
+        'Unhandled rejection:',
+        error
+    );
+});
+
+process.on('uncaughtException', error => {
+    console.error(
+        'Uncaught exception:',
+        error
+    );
+});
+
+client.on('error', error => {
+    console.error(
+        'Erreur client Discord:',
+        error
+    );
+});
+
+client.on(Events.InteractionCreate, interaction => {
+    patchInteractionResponses(interaction);
+});
 
 function recupererFichiers(dossier) {
 
@@ -218,7 +376,9 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!interaction.isChatInputCommand()) return;
 
-    await envoyerLog(client, interaction.guild.id, {
+    patchInteractionResponses(interaction);
+
+    envoyerLog(client, interaction.guild?.id, {
 
         titre: '🤖 Commande utilisée',
 
@@ -234,6 +394,11 @@ ${interaction.channel}`,
         couleur: 0x5865F2,
 
         auteur: interaction.user
+    }).catch(error => {
+        console.error(
+            `Erreur log commande /${interaction.commandName}:`,
+            error
+        );
     });
 
     const command =
@@ -244,6 +409,9 @@ ${interaction.channel}`,
     if (!command) return;
 
     try {
+        if (command.deferOnStart) {
+            await safeDefer(interaction);
+        }
 
         await command.execute(interaction);
 
@@ -251,29 +419,10 @@ ${interaction.channel}`,
 
         console.error(error);
 
-        if (
-            interaction.replied ||
-            interaction.deferred
-        ) {
-
-            await interaction.followUp({
-
-                content:
-                    '❌ Une erreur est survenue.',
-
-                ephemeral: true
-            });
-
-        } else {
-
-            await interaction.reply({
-
-                content:
-                    '❌ Une erreur est survenue.',
-
-                ephemeral: true
-            });
-        }
+        await safeReply(interaction, {
+            content:
+                '❌ Une erreur est survenue.'
+        });
     }
 });
 
