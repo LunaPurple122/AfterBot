@@ -6,6 +6,12 @@ validateEnv();
 const { testDatabaseConnection } = require('./database/db');
 const { initDatabase } = require('./database/init');
 const { envoyerLog } = require('./core/logger');
+const {
+    recoverActiveVoiceSessions
+} = require('./modules/stats/services/voiceSessionService');
+const {
+    startStatsScheduler
+} = require('./modules/stats/services/statsSchedulerService');
 
 const fs = require('fs');
 const path = require('path');
@@ -370,6 +376,10 @@ client.once(Events.ClientReady, async readyClient => {
     await testDatabaseConnection();
 
     await initDatabase();
+
+    await recoverActiveVoiceSessions(readyClient);
+
+    startStatsScheduler(readyClient);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
