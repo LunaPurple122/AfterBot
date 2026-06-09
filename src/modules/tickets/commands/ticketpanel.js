@@ -26,6 +26,9 @@ module.exports = {
 
     async execute(interaction) {
 
+        const serverName =
+            interaction.guild?.name || 'le serveur';
+
         const result =
             await pool.query(
 
@@ -76,7 +79,7 @@ module.exports = {
                 .setColor(0x5865F2)
 
                 .setTitle(
-                    "🎫 Support L'Antre des Gamers"
+                    `🎫 Support ${serverName}`
                 )
 
                 .setDescription(

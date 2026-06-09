@@ -4,8 +4,16 @@ const {
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
+
+const { pool } =
+    require('../../../database/db');
+
+const MAX_REGLEMENT_LENGTH = 4000;
 
 module.exports = {
 
@@ -14,7 +22,7 @@ module.exports = {
         .setName('reglement')
 
         .setDescription(
-            'Gestion du règlement.'
+            'Gestion du reglement.'
         )
 
         .addSubcommand(subcommand =>
@@ -23,7 +31,17 @@ module.exports = {
                 .setName('envoyer')
 
                 .setDescription(
-                    'Envoyer le règlement.'
+                    'Envoyer le reglement.'
+                )
+        )
+
+        .addSubcommand(subcommand =>
+            subcommand
+
+                .setName('configurer')
+
+                .setDescription(
+                    'Configurer le texte du reglement.'
                 )
         )
 
@@ -33,10 +51,85 @@ module.exports = {
 
     async execute(interaction) {
 
+        const serverName =
+            interaction.guild?.name || 'le serveur';
+
         const subcommand =
             interaction.options.getSubcommand();
 
+        if (subcommand === 'configurer') {
+
+            const result =
+                await pool.query(
+                    `SELECT texte_reglement
+                    FROM serveurs
+                    WHERE serveur_id = $1`,
+                    [interaction.guild.id]
+                );
+
+            const texteReglement =
+                result.rows[0]?.texte_reglement || '';
+
+            const modal =
+                new ModalBuilder()
+                    .setCustomId(
+                        `reglement_configurer:${interaction.user.id}`
+                    )
+                    .setTitle(
+                        'Texte du reglement'
+                    );
+
+            const texteInput =
+                new TextInputBuilder()
+                    .setCustomId('texte_reglement')
+                    .setLabel('Texte du reglement')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder(
+                        'Colle ou ecris le reglement ici...'
+                    )
+                    .setRequired(true)
+                    .setMaxLength(MAX_REGLEMENT_LENGTH);
+
+            if (texteReglement) {
+                texteInput.setValue(
+                    texteReglement.slice(
+                        0,
+                        MAX_REGLEMENT_LENGTH
+                    )
+                );
+            }
+
+            const row =
+                new ActionRowBuilder()
+                    .addComponents(texteInput);
+
+            modal.addComponents(row);
+
+            return interaction.showModal(modal);
+        }
+
         if (subcommand === 'envoyer') {
+
+            const result =
+                await pool.query(
+                    `SELECT texte_reglement
+                    FROM serveurs
+                    WHERE serveur_id = $1`,
+                    [interaction.guild.id]
+                );
+
+            const texteReglement =
+                result.rows[0]?.texte_reglement?.trim();
+
+            if (!texteReglement) {
+                return interaction.reply({
+
+                    content:
+                        'Aucun texte de reglement configure. Utilise `/reglement configurer` avant de l envoyer.',
+
+                    ephemeral: true
+                });
+            }
 
             const embed =
                 new EmbedBuilder()
@@ -44,88 +137,16 @@ module.exports = {
                     .setColor(0x5865F2)
 
                     .setTitle(
-                        '🌃 Bienvenue sur AfterStation'
+                        `Bienvenue sur ${serverName}`
                     )
 
                     .setDescription(
-`Avant d’accéder au serveur, merci de prendre le temps de lire et respecter le règlement ci-dessous.
-
-AfterStation est un espace communautaire centré sur la convivialité, les échanges, la musique et les rencontres dans une ambiance after-hours.
-
-Le respect des autres membres est indispensable.
-
-━━━━━━━━━━━━━━
-
-## 📜 RÈGLEMENT
-
-### 1️⃣ Respect & bienveillance
-Le respect entre membres est obligatoire en toutes circonstances.
-
-Les insultes, provocations gratuites, comportements toxiques, harcèlement, intimidation ou volonté de nuire ne seront pas tolérés.
-
-### 2️⃣ Respect des identités & pronoms
-Chaque membre doit être respecté dans son identité, son genre et ses pronoms.
-
-Si une personne indique ses pronoms, son genre ou possède des rôles les indiquant, ceux-ci doivent être respectés sans discussion ni débat.
-
-Les remarques du type :
-• « j’entends une voix d’homme/femme donc je dirai ce que je veux »
-• « pour moi tu resteras… »
-• « faut le temps que je m’y fasse »
-
-ne sont pas acceptées comme excuses pour mégenrer volontairement quelqu’un.
-
-Le mégenrage volontaire, l’invalidation d’identité, la transphobie ainsi que toute autre forme de discrimination (racisme, sexisme, homophobie, validisme, etc.) entraîneront des sanctions sévères pouvant aller jusqu’au bannissement définitif immédiat.
-
-### 3️⃣ Aucun contenu illégal
-Sont interdits :
-• contenus illégaux
-• revenge porn
-• doxxing
-• menaces réelles
-• incitation à la haine ou à la violence
-• partage de malwares, scams ou contenus frauduleux
-
-Tout contenu illégal sera supprimé immédiatement et pourra être signalé aux autorités compétentes.
-
-### 4️⃣ Spam & perturbation
-Le spam, flood, mentions abusives, raids ou toute perturbation volontaire du serveur sont interdits.
-
-### 5️⃣ Ambiance vocale
-Les salons vocaux sont faits pour passer un bon moment ensemble.
-
-Merci d’éviter :
-• les cris/mic saturés volontaires
-• les nuisances sonores répétées
-• les comportements visant à mettre mal à l’aise les autres membres
-
-### 6️⃣ Respect du staff
-Le staff est là pour maintenir une ambiance saine et agréable.
-
-Les décisions de modération doivent être respectées.
-
-### 7️⃣ Contenu sensible / NSFW
-Les contenus NSFW, gore ou choquants doivent rester strictement dans les espaces prévus à cet effet lorsqu’ils existent.
-
-Les contenus illégaux ou extrêmes restent interdits partout.
-
-━━━━━━━━━━━━━━
-
-⚠️ En rejoignant le serveur, vous acceptez ce règlement et reconnaissez que le non-respect de celui-ci peut entraîner :
-• avertissement
-• mute
-• kick
-• bannissement temporaire
-• bannissement définitif
-
-━━━━━━━━━━━━━━
-
-Clique sur le bouton ci-dessous pour accepter le règlement.`
+                        texteReglement
                     )
 
                     .setFooter({
                         text:
-                            'AfterStation — Open after dark 🌙'
+                            serverName
                     });
 
             const row =
@@ -140,7 +161,7 @@ Clique sur le bouton ci-dessous pour accepter le règlement.`
                             )
 
                             .setLabel(
-                                'Accepter le règlement'
+                                'Accepter le reglement'
                             )
 
                             .setEmoji('✅')
@@ -160,7 +181,7 @@ Clique sur le bouton ci-dessous pour accepter le règlement.`
             return interaction.reply({
 
                 content:
-                    '✅ Règlement envoyé.',
+                    'Reglement envoye.',
 
                 ephemeral: true
             });

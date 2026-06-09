@@ -8,6 +8,8 @@ const {
     ActionRowBuilder
 } = require('discord.js');
 
+const MAX_MODAL_MESSAGE_LENGTH = 4000;
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('chat')
@@ -37,7 +39,7 @@ module.exports = {
             .setStyle(TextInputStyle.Paragraph)
             .setPlaceholder('Écris ton message ici...')
             .setRequired(true)
-            .setMaxLength(2000);
+            .setMaxLength(MAX_MODAL_MESSAGE_LENGTH);
 
         const row = new ActionRowBuilder().addComponents(messageInput);
 
