@@ -12,6 +12,9 @@ const {
 const {
     startStatsScheduler
 } = require('./modules/stats/services/statsSchedulerService');
+const {
+    startBumpReminders
+} = require('./modules/bump/services/bumpService');
 
 const fs = require('fs');
 const path = require('path');
@@ -282,6 +285,8 @@ client.once(Events.ClientReady, async readyClient => {
     await recoverActiveVoiceSessions(readyClient);
 
     startStatsScheduler(readyClient);
+
+    await startBumpReminders(readyClient);
 });
 
 client.on(Events.InteractionCreate, async interaction => {
