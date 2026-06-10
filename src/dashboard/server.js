@@ -125,34 +125,6 @@ function findPromises(value, path = 'data', found = [], seen = new WeakSet()) {
     return found;
 }
 
-async function resolvePromiseValues(value, keyPath) {
-    if (isPromiseLike(value)) {
-        return resolvePromiseValues(await value, keyPath);
-    }
-
-    if (Array.isArray(value)) {
-        const resolved = [];
-
-        for (let index = 0; index < value.length; index++) {
-            resolved.push(await resolvePromiseValues(value[index], `${keyPath}[${index}]`));
-        }
-
-        return resolved;
-    }
-
-    if (isPlainObject(value)) {
-        const resolved = {};
-
-        for (const [key, childValue] of Object.entries(value)) {
-            resolved[key] = await resolvePromiseValues(childValue, `${keyPath}.${key}`);
-        }
-
-        return resolved;
-    }
-
-    return value;
-}
-
 function normalizeDashboardLocals(locals) {
     const normalized = { ...locals };
 
@@ -256,23 +228,16 @@ async function renderDashboard(res, view, locals = {}) {
             ...(locals.texts || {})
         }
     };
-    const resolvedLocals = {};
-    const promises = findPromises(mergedLocals);
+    const unresolvedPromises = findPromises(mergedLocals);
 
-    if (promises.length > 0) {
-        console.error('[Dashboard] Promises non resolues detectees :', promises);
+    if (unresolvedPromises.length > 0) {
+        console.error('[Dashboard] Promises non resolues envoyees a EJS :', unresolvedPromises);
+        throw new Error(
+            `Promises non resolues dans les donnees EJS : ${unresolvedPromises.join(', ')}`
+        );
     }
 
-    for (const [key, value] of Object.entries(mergedLocals)) {
-        resolvedLocals[key] = await resolvePromiseValues(value, key);
-    }
-
-    const viewLocals = normalizeDashboardLocals(resolvedLocals);
-    const unresolvedAfterAwait = findPromises(viewLocals);
-
-    if (unresolvedAfterAwait.length > 0) {
-        console.error('[Dashboard] Promises encore presentes apres resolution :', unresolvedAfterAwait);
-    }
+    const viewLocals = normalizeDashboardLocals(mergedLocals);
 
     const body = await ejs.renderFile(
         path.join(viewsDir, `${view}.ejs`),
@@ -280,11 +245,15 @@ async function renderDashboard(res, view, locals = {}) {
         { async: true }
     );
 
-    return res.send(await ejs.renderFile(
+    const html = await ejs.renderFile(
         path.join(viewsDir, 'layout.ejs'),
         { ...viewLocals, body },
         { async: true }
-    ));
+    );
+
+    console.log(`[Dashboard] Render ${res.req?.originalUrl || view} OK`);
+
+    return res.send(html);
 }
 
 function dashboardRenderMiddleware(req, res, next) {
@@ -336,7 +305,10 @@ function mapChannels(guild, type) {
         .filter(channel => channel.type === type)
         .map(channel => ({
             id: channel.id,
-            name: channel.name
+            name: channel.name,
+            type: channel.type,
+            parentId: channel.parentId || null,
+            position: channel.position ?? 0
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -347,7 +319,9 @@ function mapRoles(guild) {
         .map(role => ({
             id: role.id,
             name: role.name,
-            color: role.hexColor
+            position: role.position,
+            color: role.hexColor,
+            managed: role.managed
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -553,7 +527,10 @@ app.get('/guilds', requireAuth, async (req, res, next) => {
             guilds.push({
                 id: oauthGuild.id,
                 name: access.botGuild?.name || oauthGuild.name,
+                icon: access.botGuild?.iconURL?.({ size: 64 }) || null,
                 iconURL: access.botGuild?.iconURL?.({ size: 64 }) || null,
+                owner: access.botGuild?.ownerId || null,
+                permissions: oauthGuild.permissions,
                 isAdmin: access.isAdmin,
                 isDbOwner: access.isDbOwner
             });
@@ -943,12 +920,13 @@ app.get('/guilds/:guildId/rolemenu',
     async (req, res, next) => {
         try {
             const rolemenus = await listRolemenus(req.params.guildId);
-            const menusWithRoles = await Promise.all(
-                rolemenus.map(async menu => ({
-                    ...menu,
-                    roles: await getRolemenuRoles(menu.id)
-                }))
+            const rolemenuRoles = await Promise.all(
+                rolemenus.map(menu => getRolemenuRoles(menu.id))
             );
+            const menusWithRoles = rolemenus.map((menu, index) => ({
+                ...menu,
+                roles: rolemenuRoles[index]
+            }));
 
             return res.renderDashboard('rolemenu', {
                 title: 'Role menus',
@@ -1184,6 +1162,13 @@ app.get('/guilds/:guildId/embeds',
 app.use((error, req, res, next) => {
     console.error('[Dashboard] Erreur:', error);
     if (res.headersSent) return next(error);
+
+    if (String(error?.message || '').startsWith('Promises non resolues dans les donnees EJS')) {
+        return res.status(500).renderDashboard('login', {
+            title: 'Erreur dashboard',
+            error: error.message
+        });
+    }
 
     return res.status(500).renderDashboard('login', {
         title: 'Erreur',
