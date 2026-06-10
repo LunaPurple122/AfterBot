@@ -99,9 +99,34 @@ function isPlainObject(value) {
     return Object.prototype.toString.call(value) === '[object Object]';
 }
 
+function findPromises(value, path = 'data', found = [], seen = new WeakSet()) {
+    if (isPromiseLike(value)) {
+        found.push(path);
+        return found;
+    }
+
+    if (Array.isArray(value)) {
+        value.forEach((item, index) => {
+            findPromises(item, `${path}[${index}]`, found, seen);
+        });
+
+        return found;
+    }
+
+    if (value && typeof value === 'object') {
+        if (seen.has(value)) return found;
+        seen.add(value);
+
+        for (const [key, nestedValue] of Object.entries(value)) {
+            findPromises(nestedValue, `${path}.${key}`, found, seen);
+        }
+    }
+
+    return found;
+}
+
 async function resolvePromiseValues(value, keyPath) {
     if (isPromiseLike(value)) {
-        console.error(`[Dashboard] Promise non resolue passee a la vue : ${keyPath}`);
         return resolvePromiseValues(await value, keyPath);
     }
 
@@ -232,12 +257,22 @@ async function renderDashboard(res, view, locals = {}) {
         }
     };
     const resolvedLocals = {};
+    const promises = findPromises(mergedLocals);
+
+    if (promises.length > 0) {
+        console.error('[Dashboard] Promises non resolues detectees :', promises);
+    }
 
     for (const [key, value] of Object.entries(mergedLocals)) {
         resolvedLocals[key] = await resolvePromiseValues(value, key);
     }
 
     const viewLocals = normalizeDashboardLocals(resolvedLocals);
+    const unresolvedAfterAwait = findPromises(viewLocals);
+
+    if (unresolvedAfterAwait.length > 0) {
+        console.error('[Dashboard] Promises encore presentes apres resolution :', unresolvedAfterAwait);
+    }
 
     const body = await ejs.renderFile(
         path.join(viewsDir, `${view}.ejs`),
@@ -908,14 +943,12 @@ app.get('/guilds/:guildId/rolemenu',
     async (req, res, next) => {
         try {
             const rolemenus = await listRolemenus(req.params.guildId);
-            const menusWithRoles = [];
-
-            for (const menu of rolemenus) {
-                menusWithRoles.push({
+            const menusWithRoles = await Promise.all(
+                rolemenus.map(async menu => ({
                     ...menu,
                     roles: await getRolemenuRoles(menu.id)
-                });
-            }
+                }))
+            );
 
             return res.renderDashboard('rolemenu', {
                 title: 'Role menus',

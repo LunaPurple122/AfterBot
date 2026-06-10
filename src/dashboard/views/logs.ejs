@@ -18,7 +18,7 @@
     <% } else { %>
         <div class="table">
             <% safeWarnings.forEach(warn => { %>
-                <div><strong><%= warn.utilisateur_id %></strong><span><%= warn.raison || 'Sans raison' %></span><small><%= warn.cree_le %></small></div>
+                <div><strong><%= warn.utilisateur_id %></strong><span><%= warn.raison || 'Sans raison' %></span><small><%= warn.cree_le ? new Date(warn.cree_le).toLocaleString('fr-FR') : '-' %></small></div>
             <% }) %>
         </div>
     <% } %>
