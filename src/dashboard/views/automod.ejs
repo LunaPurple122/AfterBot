@@ -1,0 +1,23 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Automod</h1>
+    <label class="toggle"><input type="checkbox" name="anti_spam_enabled" <%= safeConfig.anti_spam_enabled ? 'checked' : '' %>> Anti spam</label>
+    <label>Limite messages<input type="number" min="2" max="20" name="spam_message_limit" value="<%= safeConfig.spam_message_limit || 5 %>"></label>
+    <label>Intervalle spam<input type="number" min="1" max="30" name="spam_interval" value="<%= safeConfig.spam_interval || 5 %>"></label>
+    <label>Timeout spam<input type="number" min="1" name="spam_timeout_minutes" value="<%= safeConfig.spam_timeout_minutes || 5 %>"></label>
+    <label class="toggle"><input type="checkbox" name="anti_mass_mention_enabled" <%= safeConfig.anti_mass_mention_enabled ? 'checked' : '' %>> Anti mass mention</label>
+    <label>Limite mentions<input type="number" min="2" max="50" name="mass_mention_limit" value="<%= safeConfig.mass_mention_limit || 5 %>"></label>
+    <label>Timeout mentions<input type="number" min="1" name="mass_mention_timeout_minutes" value="<%= safeConfig.mass_mention_timeout_minutes || 5 %>"></label>
+    <label class="toggle"><input type="checkbox" name="anti_scam_links_enabled" <%= safeConfig.anti_scam_links_enabled ? 'checked' : '' %>> Anti scam links</label>
+    <label class="toggle"><input type="checkbox" name="anti_raid_join_enabled" <%= safeConfig.anti_raid_join_enabled ? 'checked' : '' %>> Anti raid join</label>
+    <label>Limite arrivees<input type="number" min="2" max="100" name="raid_join_limit" value="<%= safeConfig.raid_join_limit || 10 %>"></label>
+    <label>Intervalle raid<input type="number" min="1" max="300" name="raid_join_interval" value="<%= safeConfig.raid_join_interval || 10 %>"></label>
+    <label>Action raid<select name="raid_join_action"><option value="lockdown" <%= safeConfig.raid_join_action === 'lockdown' ? 'selected' : '' %>>Lockdown</option></select></label>
+    <label>Lockdown minutes<input type="number" min="1" max="1440" name="raid_lockdown_minutes" value="<%= safeConfig.raid_lockdown_minutes || 10 %>"></label>
+    <%- include('partials/channel-select', { label: 'Salon logs automod', name: 'logs_channel_id', value: safeConfig.logs_channel_id, channels: safeOptions.textChannels }) %>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

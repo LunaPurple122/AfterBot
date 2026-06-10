@@ -55,6 +55,8 @@ const client = new Client({
     ]
 });
 
+require('./dashboard/server').setClient(client);
+
 client.commands = new Collection();
 
 const modulesPath = path.join(__dirname, 'modules');

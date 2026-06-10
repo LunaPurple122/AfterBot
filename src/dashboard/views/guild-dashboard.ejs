@@ -1,0 +1,44 @@
+<%
+    const safeCurrentGuild = typeof currentGuild !== 'undefined' && currentGuild ? currentGuild : { id: '' };
+    const safeServerConfig = typeof serverConfig !== 'undefined' && serverConfig ? serverConfig : {};
+    const safeAutomod = typeof automod !== 'undefined' && automod ? automod : {};
+    const safeRolemenus = Array.isArray(typeof rolemenus !== 'undefined' ? rolemenus : null) ? rolemenus : [];
+    const safeTickets = typeof tickets !== 'undefined' && tickets ? tickets : { tickets: [] };
+    const safeTicketRows = Array.isArray(safeTickets.tickets) ? safeTickets.tickets : [];
+    const safeStats = typeof stats !== 'undefined' && stats ? stats : { memberStats: null };
+%>
+<section class="grid metrics">
+    <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/settings">
+        <span class="eyebrow">Configuration</span>
+        <h2><%= safeServerConfig.captcha_actif ? 'Captcha actif' : 'Captcha inactif' %></h2>
+        <p>Logs, bienvenue, roles et reglement.</p>
+    </a>
+    <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/automod">
+        <span class="eyebrow">Automod</span>
+        <h2><%= safeAutomod.anti_spam_enabled ? 'Protection active' : 'A verifier' %></h2>
+        <p>Spam, raids, mentions et liens frauduleux.</p>
+    </a>
+    <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/tickets">
+        <span class="eyebrow">Tickets</span>
+        <h2><%= safeTicketRows.reduce((sum, row) => sum + row.total, 0) %> tickets</h2>
+        <p>Configuration et activite du support.</p>
+    </a>
+    <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/rolemenu">
+        <span class="eyebrow">Role menus</span>
+        <h2><%= safeRolemenus.length %> menus</h2>
+        <p>Menus de roles synchronises en DB.</p>
+    </a>
+</section>
+
+<section class="panel">
+    <h2>Stats rapides</h2>
+    <% if (safeStats.memberStats) { %>
+        <div class="inline-stats">
+            <span><strong><%= safeStats.memberStats.tracked_members %></strong> membres suivis</span>
+            <span><strong><%= safeStats.memberStats.messages %></strong> messages</span>
+            <span><strong><%= safeStats.memberStats.voice_seconds %></strong> secondes vocales</span>
+        </div>
+    <% } else { %>
+        <p>Les tables de stats ne sont pas disponibles.</p>
+    <% } %>
+</section>

@@ -1,0 +1,22 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+    safeOptions.categories = Array.isArray(safeOptions.categories) ? safeOptions.categories : [];
+    safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Parametres serveur</h1>
+    <%- include('partials/channel-select', { label: 'Salon logs', name: 'salon_logs_id', value: safeConfig.salon_logs_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Salon bienvenue', name: 'salon_bienvenue_id', value: safeConfig.salon_bienvenue_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Salon depart', name: 'salon_depart_id', value: safeConfig.salon_depart_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Salon radio', name: 'salon_radio_id', value: safeConfig.salon_radio_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/role-select', { label: 'Role non verifie', name: 'role_non_verifie_id', value: safeConfig.role_non_verifie_id, roles: safeOptions.roles }) %>
+    <%- include('partials/role-select', { label: 'Role membre', name: 'role_membre_id', value: safeConfig.role_membre_id, roles: safeOptions.roles }) %>
+    <%- include('partials/channel-select', { label: 'Categorie captcha', name: 'categorie_captcha_id', value: safeConfig.categorie_captcha_id, channels: safeOptions.categories }) %>
+    <%- include('partials/role-select', { label: 'Role reglement', name: 'role_reglement_id', value: safeConfig.role_reglement_id, roles: safeOptions.roles }) %>
+    <label class="toggle"><input type="checkbox" name="automod_actif" <%= safeConfig.automod_actif ? 'checked' : '' %>> Automod actif</label>
+    <label class="toggle"><input type="checkbox" name="captcha_actif" <%= safeConfig.captcha_actif ? 'checked' : '' %>> Captcha actif</label>
+    <label class="wide">Texte reglement<textarea name="texte_reglement" rows="8"><%= safeConfig.texte_reglement || '' %></textarea></label>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

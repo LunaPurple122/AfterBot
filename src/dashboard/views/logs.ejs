@@ -1,0 +1,25 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    const safeWarnings = Array.isArray(typeof warnings !== 'undefined' ? warnings : null) ? warnings : [];
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Logs</h1>
+    <%- include('partials/channel-select', { label: 'Logs generaux', name: 'salon_logs_id', value: safeConfig.salon_logs_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Logs automod', name: 'automod_logs_channel_id', value: safeConfig.automod_logs_channel_id, channels: safeOptions.textChannels }) %>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>
+
+<section class="panel">
+    <h2>Derniers warns</h2>
+    <% if (safeWarnings.length === 0) { %>
+        <p>Aucun warn trouve.</p>
+    <% } else { %>
+        <div class="table">
+            <% safeWarnings.forEach(warn => { %>
+                <div><strong><%= warn.utilisateur_id %></strong><span><%= warn.raison || 'Sans raison' %></span><small><%= warn.cree_le %></small></div>
+            <% }) %>
+        </div>
+    <% } %>
+</section>

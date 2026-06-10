@@ -1,0 +1,31 @@
+<%
+    const safeGuilds = Array.isArray(typeof guilds !== 'undefined' ? guilds : null) ? guilds : [];
+    const safeBotReady = typeof botReady !== 'undefined' ? botReady : false;
+%>
+<section>
+    <div class="section-title">
+        <div>
+            <span class="eyebrow">Acces</span>
+            <h1>Serveurs disponibles</h1>
+        </div>
+        <span class="status <%= safeBotReady ? 'ok' : 'warn' %>"><%= safeBotReady ? 'Bot connecte' : 'Bot en attente' %></span>
+    </div>
+
+    <% if (safeGuilds.length === 0) { %>
+        <div class="panel">
+            <p>Aucun serveur disponible. Le bot doit etre present et ton compte doit etre administrateur ou owner en DB.</p>
+        </div>
+    <% } %>
+
+    <div class="grid cards">
+        <% safeGuilds.forEach(guild => { const guildName = guild?.name || 'Serveur'; %>
+            <a class="card guild-card" href="/guilds/<%= guild.id %>">
+                <div class="avatar"><%= guildName.slice(0, 1).toUpperCase() %></div>
+                <div>
+                    <h2><%= guildName %></h2>
+                    <p><%= guild.isAdmin ? 'Administrateur Discord' : 'Owner en DB' %></p>
+                </div>
+            </a>
+        <% }) %>
+    </div>
+</section>

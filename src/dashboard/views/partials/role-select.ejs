@@ -1,0 +1,14 @@
+<%
+    const safeLabel = typeof label !== 'undefined' ? label : 'Role';
+    const safeName = typeof name !== 'undefined' ? name : 'role_id';
+    const safeValue = typeof value !== 'undefined' ? value : '';
+    const safeRoles = Array.isArray(typeof roles !== 'undefined' ? roles : null) ? roles : [];
+%>
+<label><%= safeLabel %>
+    <select name="<%= safeName %>">
+        <option value="">Non defini</option>
+        <% safeRoles.forEach(role => { %>
+            <option value="<%= role.id %>" <%= String(safeValue || '') === String(role.id) ? 'selected' : '' %>><%= role.name %></option>
+        <% }) %>
+    </select>
+</label>

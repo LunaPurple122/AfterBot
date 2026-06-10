@@ -1,0 +1,77 @@
+<!doctype html>
+<%
+    const safeFlash = typeof flash !== 'undefined' && flash ? flash : {};
+    const safeError = typeof error !== 'undefined' ? error : null;
+    const safeSuccess = typeof success !== 'undefined' ? success : null;
+    const safeUser = typeof user !== 'undefined' ? user : null;
+    const safeCurrentGuild = typeof currentGuild !== 'undefined' ? currentGuild : null;
+    const safeBody = typeof body !== 'undefined' ? body : '';
+    const safeTitle = typeof title !== 'undefined' && title ? title : 'AfterBot Dashboard';
+%>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><%= safeTitle %> - AfterBot</title>
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+    <div class="shell">
+        <aside class="sidebar">
+            <a class="brand" href="/">
+                <span class="brand-mark">A</span>
+                <span>AfterBot</span>
+            </a>
+
+            <% if (safeUser) { %>
+                <div class="user">
+                    <div class="avatar"><%= safeUser.username?.slice(0, 1).toUpperCase() || 'U' %></div>
+                    <div>
+                        <strong><%= safeUser.username %></strong>
+                        <span>Connecte</span>
+                    </div>
+                </div>
+                <nav>
+                    <a href="/guilds">Serveurs</a>
+                    <% if (safeCurrentGuild) { %>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>">Vue globale</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/settings">Parametres</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/automod">Automod</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/logs">Logs</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/rolemenu">Role menu</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/tickets">Tickets</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/textes">Textes</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/embeds">Embeds</a>
+                    <% } %>
+                    <a href="/logout">Deconnexion</a>
+                </nav>
+            <% } else { %>
+                <nav>
+                    <a href="/">Accueil</a>
+                    <a href="/login">Connexion</a>
+                </nav>
+            <% } %>
+        </aside>
+
+        <main class="content">
+            <% if (safeCurrentGuild) { %>
+                <header class="topbar">
+                    <div>
+                        <span class="eyebrow">Serveur</span>
+                        <h1><%= safeCurrentGuild.name %></h1>
+                    </div>
+                </header>
+            <% } %>
+
+            <% if (safeFlash.success || safeSuccess) { %>
+                <div class="alert success"><%= safeFlash.success || safeSuccess %></div>
+            <% } %>
+            <% if (safeFlash.error || safeError) { %>
+                <div class="alert error"><%= safeFlash.error || safeError %></div>
+            <% } %>
+
+            <%- safeBody %>
+        </main>
+    </div>
+</body>
+</html>

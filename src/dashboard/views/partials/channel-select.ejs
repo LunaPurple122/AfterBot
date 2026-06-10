@@ -1,0 +1,14 @@
+<%
+    const safeLabel = typeof label !== 'undefined' ? label : 'Salon';
+    const safeName = typeof name !== 'undefined' ? name : 'channel_id';
+    const safeValue = typeof value !== 'undefined' ? value : '';
+    const safeChannels = Array.isArray(typeof channels !== 'undefined' ? channels : null) ? channels : [];
+%>
+<label><%= safeLabel %>
+    <select name="<%= safeName %>">
+        <option value="">Non defini</option>
+        <% safeChannels.forEach(channel => { %>
+            <option value="<%= channel.id %>" <%= String(safeValue || '') === String(channel.id) ? 'selected' : '' %>># <%= channel.name %></option>
+        <% }) %>
+    </select>
+</label>

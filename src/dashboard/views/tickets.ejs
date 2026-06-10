@@ -1,0 +1,21 @@
+<%
+    const safeSummary = typeof summary !== 'undefined' && summary ? summary : { config: null, tickets: [] };
+    const safeTicketRows = Array.isArray(safeSummary.tickets) ? safeSummary.tickets : [];
+%>
+<section class="panel">
+    <h1>Tickets</h1>
+    <% if (!safeSummary.config) { %>
+        <p>Configuration tickets absente.</p>
+    <% } else { %>
+        <div class="inline-stats">
+            <span><strong><%= safeSummary.config.panel_channel_id || '-' %></strong> panel</span>
+            <span><strong><%= safeSummary.config.staff_role_id || '-' %></strong> staff</span>
+            <span><strong><%= safeSummary.config.logs_channel_id || '-' %></strong> logs</span>
+        </div>
+    <% } %>
+    <div class="table">
+        <% safeTicketRows.forEach(row => { %>
+            <div><strong><%= row.ouvert ? 'Ouverts' : 'Fermes' %></strong><span><%= row.total %> tickets</span></div>
+        <% }) %>
+    </div>
+</section>

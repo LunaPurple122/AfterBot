@@ -1,0 +1,18 @@
+<%
+    const safeRolemenus = Array.isArray(typeof rolemenus !== 'undefined' ? rolemenus : null) ? rolemenus : [];
+%>
+<section class="panel">
+    <h1>Role menus</h1>
+    <% if (safeRolemenus.length === 0) { %>
+        <p>Aucun role menu configure.</p>
+    <% } %>
+    <div class="table">
+        <% safeRolemenus.forEach(menu => { %>
+            <div>
+                <strong><%= menu.titre %></strong>
+                <span><%= menu.nom_interne %> - <%= menu.roles_count %> roles</span>
+                <small><%= menu.actif ? 'Actif' : 'Inactif' %></small>
+            </div>
+        <% }) %>
+    </div>
+</section>
