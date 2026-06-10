@@ -19,6 +19,10 @@ const {
     requireBotPermission
 } = require('../../../core/permissions');
 
+const {
+    safeDeferReply
+} = require('../../../core/interactions');
+
 module.exports = {
 
     ticketActionsEvent: {
@@ -38,6 +42,12 @@ module.exports = {
                     'join_ticket_'
                 )
             ) {
+                const deferred =
+                    await safeDeferReply(interaction, {
+                        ephemeral: true
+                    });
+
+                if (!deferred) return;
 
                 const ticketId =
                     customId.replace(
@@ -105,6 +115,12 @@ module.exports = {
                     'join_staff_'
                 )
             ) {
+                const deferred =
+                    await safeDeferReply(interaction, {
+                        ephemeral: true
+                    });
+
+                if (!deferred) return;
 
                 const ticketId =
                     customId.replace(
@@ -334,6 +350,12 @@ Membre :
                     'create_voice_'
                 )
             ) {
+                const deferred =
+                    await safeDeferReply(interaction, {
+                        ephemeral: true
+                    });
+
+                if (!deferred) return;
 
                 const ticketId =
                     customId.replace(
@@ -556,35 +578,6 @@ ${voice}`,
                         'close_ticket_',
                         ''
                     );
-
-                const result =
-                    await pool.query(
-
-                        `
-                        SELECT *
-                        FROM tickets
-                        WHERE id = $1
-                        AND ouvert = TRUE
-                        `,
-
-                        [
-                            ticketId
-                        ]
-                    );
-
-                const ticket =
-                    result.rows[0];
-
-                if (!ticket) {
-
-                    return interaction.reply({
-
-                        content:
-                            '❌ Ce ticket est fermé ou introuvable.',
-
-                        ephemeral: true
-                    });
-                }
 
                 const modal =
                     new ModalBuilder()

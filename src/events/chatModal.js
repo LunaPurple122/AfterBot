@@ -5,6 +5,11 @@ const {
 
 const DISCORD_MESSAGE_LIMIT = 2000;
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../core/interactions');
+
 function splitDiscordMessage(message) {
     const chunks = [];
     const lines = message.split('\n');
@@ -68,7 +73,7 @@ module.exports = {
             try {
 
                 if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: 'Tu n as pas la permission d utiliser ca.',
                         ephemeral: true
                     });
@@ -81,7 +86,7 @@ module.exports = {
                     interaction.guild.channels.cache.get(channelId);
 
                 if (!channel || !channel.isTextBased()) {
-                    return interaction.reply({
+                    return safeReply(interaction, {
                         content: 'Salon introuvable ou invalide.',
                         ephemeral: true
                     });
@@ -93,6 +98,13 @@ module.exports = {
                 const chunks =
                     splitDiscordMessage(message);
 
+                const deferred =
+                    await safeDeferReply(interaction, {
+                        ephemeral: true
+                    });
+
+                if (!deferred) return;
+
                 for (const chunk of chunks) {
                     await channel.send({
                         content: chunk,
@@ -102,7 +114,7 @@ module.exports = {
                     });
                 }
 
-                await interaction.reply({
+                await safeReply(interaction, {
                     content:
                         chunks.length > 1
                             ? `Message envoye dans ${channel} en ${chunks.length} parties.`
@@ -114,13 +126,11 @@ module.exports = {
 
                 console.error('Erreur chat modal :', error);
 
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content:
-                            'Une erreur est survenue pendant l envoi du message.',
-                        ephemeral: true
-                    });
-                }
+                await safeReply(interaction, {
+                    content:
+                        'Une erreur est survenue pendant l envoi du message.',
+                    ephemeral: true
+                });
             }
         }
     }

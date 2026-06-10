@@ -98,6 +98,8 @@ async function replyWithSync(interaction, rolemenu, content) {
 
 module.exports = {
 
+    deferOnStart: true,
+
     data: new SlashCommandBuilder()
 
         .setName('rolemenu')

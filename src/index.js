@@ -21,9 +21,15 @@ const {
     Collection,
     GatewayIntentBits,
     Events,
-    MessageFlags,
     Partials
 } = require('discord.js');
+
+const {
+    isIgnoredInteractionError,
+    patchInteractionResponses,
+    safeDeferReply,
+    safeReply
+} = require('./core/interactions');
 
 const client = new Client({
     intents: [
@@ -52,138 +58,6 @@ const client = new Client({
 client.commands = new Collection();
 
 const modulesPath = path.join(__dirname, 'modules');
-
-function isUnknownInteractionError(error) {
-    return (
-        error?.code === 10062 ||
-        String(error?.message || '')
-            .includes('Unknown interaction')
-    );
-}
-
-function normalizeInteractionOptions(options) {
-    if (
-        !options ||
-        typeof options !== 'object' ||
-        options.ephemeral !== true
-    ) {
-        return options;
-    }
-
-    const normalized = {
-        ...options
-    };
-
-    delete normalized.ephemeral;
-
-    normalized.flags =
-        Number(normalized.flags || 0) |
-        MessageFlags.Ephemeral;
-
-    return normalized;
-}
-
-function patchInteractionResponses(interaction) {
-    if (interaction.__safeResponsesPatched) {
-        return;
-    }
-
-    interaction.__safeResponsesPatched = true;
-
-    for (const methodName of [
-        'reply',
-        'followUp',
-        'deferReply'
-    ]) {
-        if (typeof interaction[methodName] !== 'function') {
-            continue;
-        }
-
-        const originalMethod =
-            interaction[methodName].bind(interaction);
-
-        interaction[methodName] = options =>
-            originalMethod(
-                normalizeInteractionOptions(options)
-            );
-    }
-}
-
-async function safeDefer(interaction) {
-    if (
-        interaction.deferred ||
-        interaction.replied
-    ) {
-        return true;
-    }
-
-    try {
-        await interaction.deferReply({
-            flags:
-                MessageFlags.Ephemeral
-        });
-
-        return true;
-
-    } catch (error) {
-        if (isUnknownInteractionError(error)) {
-            console.error(
-                `Interaction expirée avant defer /${interaction.commandName}:`,
-                error
-            );
-            return false;
-        }
-
-        console.error(
-            `Erreur defer interaction /${interaction.commandName}:`,
-            error
-        );
-        return false;
-    }
-}
-
-async function safeReply(interaction, options) {
-    const normalizedOptions =
-        normalizeInteractionOptions({
-            ...options,
-            flags:
-                Number(options?.flags || 0) |
-                MessageFlags.Ephemeral
-        });
-
-    try {
-        if (interaction.deferred && !interaction.replied) {
-            const editOptions = {
-                ...normalizedOptions
-            };
-
-            delete editOptions.flags;
-
-            return await interaction.editReply(editOptions);
-        }
-
-        if (interaction.replied) {
-            return await interaction.followUp(normalizedOptions);
-        }
-
-        return await interaction.reply(normalizedOptions);
-
-    } catch (error) {
-        if (isUnknownInteractionError(error)) {
-            console.error(
-                `Interaction expirée avant réponse /${interaction.commandName}:`,
-                error
-            );
-            return null;
-        }
-
-        console.error(
-            `Erreur réponse interaction /${interaction.commandName}:`,
-            error
-        );
-        return null;
-    }
-}
 
 process.on('unhandledRejection', error => {
     console.error(
@@ -256,13 +130,39 @@ function normaliserEvents(loadedFile) {
 
 function registerEvent(event) {
     const handler = async (...args) => {
+        const interaction =
+            args.find(arg =>
+                arg &&
+                typeof arg.isRepliable === 'function' &&
+                arg.isRepliable()
+            );
+
+        if (interaction) {
+            patchInteractionResponses(interaction);
+        }
+
         try {
             await event.execute(...args);
         } catch (error) {
+            if (isIgnoredInteractionError(error)) {
+                console.warn(
+                    `Interaction expirée ou déjà acquittée dans l'event ${event.name} : ${error.message}`
+                );
+                return;
+            }
+
             console.error(
                 `Erreur dans l'event ${event.name} :`,
                 error
             );
+
+            if (interaction) {
+                await safeReply(interaction, {
+                    content:
+                        '❌ Une erreur est survenue.',
+                    ephemeral: true
+                });
+            }
         }
     };
 
@@ -420,18 +320,27 @@ ${interaction.channel}`,
 
     try {
         if (command.deferOnStart) {
-            await safeDefer(interaction);
+            await safeDeferReply(interaction, {
+                ephemeral: true
+            });
         }
 
         await command.execute(interaction);
 
     } catch (error) {
+        if (isIgnoredInteractionError(error)) {
+            console.warn(
+                `Interaction expirée ou déjà acquittée /${interaction.commandName} : ${error.message}`
+            );
+            return;
+        }
 
         console.error(error);
 
         await safeReply(interaction, {
             content:
-                '❌ Une erreur est survenue.'
+                '❌ Une erreur est survenue.',
+            ephemeral: true
         });
     }
 });

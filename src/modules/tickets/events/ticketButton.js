@@ -13,6 +13,11 @@ const {
     requireBotPermission
 } = require('../../../core/permissions');
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../../../core/interactions');
+
 module.exports = {
 
     ticketButtonEvent: {
@@ -27,6 +32,13 @@ module.exports = {
                 interaction.customId !==
                 'create_ticket'
             ) return;
+
+            const deferred =
+                await safeDeferReply(interaction, {
+                    ephemeral: true
+                });
+
+            if (!deferred) return;
 
             if (!await requireBotPermission(
                 interaction,
@@ -53,7 +65,7 @@ module.exports = {
 
             if (!config) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Le système ticket n’est pas configuré.',
@@ -92,7 +104,7 @@ module.exports = {
                             .ticket_channel_id
                     );
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
 `❌ Tu possèdes déjà un ticket ouvert :
@@ -118,7 +130,7 @@ ${existingChannel}`,
                 !staffRole
             ) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Configuration ticket invalide.',
@@ -244,7 +256,7 @@ Merci de décrire ton problème en détail.
                 embeds: [embed]
             });
 
-            await interaction.reply({
+            await safeReply(interaction, {
 
                 content:
 `✅ Ticket créé :

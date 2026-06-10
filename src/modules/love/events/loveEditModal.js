@@ -9,6 +9,11 @@ const {
     updateLoveMessage
 } = require('../services/loveService');
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../../../core/interactions');
+
 const MAX_TITLE_LENGTH = 100;
 const MAX_CONTENT_LENGTH = 3000;
 const CUSTOM_ID_PREFIX = 'love_edit:';
@@ -47,7 +52,7 @@ module.exports = {
             interaction.user.id !== expectedUserId ||
             !isLoveUser(interaction.user.id)
         ) {
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     '❌ Cette commande est privée.',
                 flags:
@@ -68,7 +73,7 @@ module.exports = {
             validateFields(titre, contenu);
 
         if (validationError) {
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     `❌ ${validationError}`,
                 flags:
@@ -77,11 +82,19 @@ module.exports = {
         }
 
         try {
+            const deferred =
+                await safeDeferReply(interaction, {
+                    flags:
+                        MessageFlags.Ephemeral
+                });
+
+            if (!deferred) return;
+
             const existingMessage =
                 await getLoveMessage(messageId);
 
             if (!existingMessage) {
-                return interaction.reply({
+                return safeReply(interaction, {
                     content:
                         '❌ Message introuvable.',
                     flags:
@@ -95,7 +108,7 @@ module.exports = {
                 contenu
             );
 
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     '✅ Message mis à jour.',
                 flags:
@@ -108,7 +121,7 @@ module.exports = {
                 error
             );
 
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     '❌ Impossible de mettre à jour le message.',
                 flags:

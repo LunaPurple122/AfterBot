@@ -10,6 +10,11 @@ const {
     botHasGuildPermission
 } = require('../core/permissions');
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../core/interactions');
+
 module.exports = {
 
     reglementButtonEvent: {
@@ -25,6 +30,13 @@ module.exports = {
                 'accepter_reglement'
             ) return;
 
+            const deferred =
+                await safeDeferReply(interaction, {
+                    ephemeral: true
+                });
+
+            if (!deferred) return;
+
             const result =
                 await pool.query(
                     `SELECT role_reglement_id
@@ -38,7 +50,7 @@ module.exports = {
 
             if (!config) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Configuration manquante.',
@@ -54,7 +66,7 @@ module.exports = {
 
             if (!role) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Rôle introuvable.',
@@ -72,7 +84,7 @@ module.exports = {
 
                 console.error('Permission bot manquante pour donner le rôle règlement : ManageRoles');
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Permission bot manquante : ManageRoles.',
@@ -88,7 +100,7 @@ module.exports = {
                 )
             ) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '✅ Tu as déjà accepté le règlement.',
@@ -103,7 +115,7 @@ module.exports = {
                     role
                 );
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '✅ Règlement accepté.',
@@ -115,7 +127,7 @@ module.exports = {
 
                 console.error('Impossible de donner le rôle règlement :', error);
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Impossible de donner le rôle.',

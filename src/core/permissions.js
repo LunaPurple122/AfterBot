@@ -1,3 +1,7 @@
+const {
+    safeReply
+} = require('./interactions');
+
 function botHasPermission(interaction, permission) {
     const botMember = interaction.guild?.members?.me;
 
@@ -26,15 +30,11 @@ async function requireBotPermission(interaction, permission, label) {
             `❌ Permission bot manquante : ${label}.`
     };
 
-    if (interaction.deferred || interaction.replied) {
-        await interaction.editReply(payload);
-        return false;
-    }
-
-    await interaction.reply({
+    await safeReply(interaction, {
         ...payload,
         ephemeral: true
     });
+
     return false;
 }
 

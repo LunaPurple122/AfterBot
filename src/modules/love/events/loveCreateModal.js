@@ -8,6 +8,11 @@ const {
     isLoveUser
 } = require('../services/loveService');
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../../../core/interactions');
+
 const MAX_TITLE_LENGTH = 100;
 const MAX_CONTENT_LENGTH = 3000;
 const CUSTOM_ID_PREFIX = 'love_create:';
@@ -46,7 +51,7 @@ module.exports = {
             interaction.user.id !== expectedUserId ||
             !isLoveUser(interaction.user.id)
         ) {
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     '❌ Cette commande est privée.',
                 flags:
@@ -67,7 +72,7 @@ module.exports = {
             validateFields(titre, contenu);
 
         if (validationError) {
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     `❌ ${validationError}`,
                 flags:
@@ -76,6 +81,14 @@ module.exports = {
         }
 
         try {
+            const deferred =
+                await safeDeferReply(interaction, {
+                    flags:
+                        MessageFlags.Ephemeral
+                });
+
+            if (!deferred) return;
+
             const message =
                 await createLoveMessage(
                     interaction.user.id,
@@ -83,7 +96,7 @@ module.exports = {
                     contenu
                 );
 
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
 `✅ Message enregistré.
 ID : ${message.id}`,
@@ -97,7 +110,7 @@ ID : ${message.id}`,
                 error
             );
 
-            return interaction.reply({
+            return safeReply(interaction, {
                 content:
                     '❌ Impossible d’enregistrer le message.',
                 flags:

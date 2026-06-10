@@ -17,6 +17,11 @@ const {
     requireBotPermission
 } = require('../../../core/permissions');
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../../../core/interactions');
+
 module.exports = {
 
     ticketCloseModalEvent: {
@@ -44,6 +49,13 @@ module.exports = {
                     'close_reason'
                 );
 
+            const deferred =
+                await safeDeferReply(interaction, {
+                    ephemeral: true
+                });
+
+            if (!deferred) return;
+
             const result =
                 await pool.query(
 
@@ -63,7 +75,7 @@ module.exports = {
 
             if (!ticket) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Ticket introuvable.',
@@ -216,7 +228,7 @@ ${interaction.user}`,
                 }
             }
 
-            await interaction.reply({
+            await safeReply(interaction, {
 
                 content:
 `🗑️ Ticket fermé.

@@ -13,6 +13,11 @@ const {
     buildRolemenuPayload
 } = require('../services/roleMenuRenderer');
 
+const {
+    safeDeferReply,
+    safeReply
+} = require('../../../core/interactions');
+
 async function resetRolemenuMessage(interaction, rolemenu) {
     try {
         const payload =
@@ -57,6 +62,13 @@ module.exports = {
 
             if (!Number.isInteger(rolemenuId)) return;
 
+            const deferred =
+                await safeDeferReply(interaction, {
+                    ephemeral: true
+                });
+
+            if (!deferred) return;
+
             const rolemenu =
                 await getRolemenuByMessage(
                     interaction.guild.id,
@@ -69,7 +81,7 @@ module.exports = {
                 !rolemenu.actif
             ) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Ce rolemenu est désactivé ou introuvable.',
@@ -88,7 +100,7 @@ module.exports = {
                     `Permission ManageRoles manquante pour rolemenu ${rolemenu.id}`
                 );
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Permission bot manquante : ManageRoles.',
@@ -102,7 +114,7 @@ module.exports = {
 
             if (roleId === interaction.guild.id) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Le rôle @everyone ne peut pas être attribué.',
@@ -121,7 +133,7 @@ module.exports = {
 
             if (!option) {
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Cette option n’est plus active.',
@@ -137,7 +149,7 @@ module.exports = {
 
                 await disableRoleOption(option.id);
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Ce rôle n’existe plus. Option désactivée.',
@@ -155,7 +167,7 @@ module.exports = {
                     `Rôle trop haut pour rolemenu ${rolemenu.id}: ${role.id}`
                 );
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Mon rôle est trop bas pour gérer ce rôle.',
@@ -183,7 +195,7 @@ module.exports = {
                         rolemenu
                     );
 
-                    return interaction.reply({
+                    return safeReply(interaction, {
 
                         content:
                             `✅ Rôle retiré : ${role}`,
@@ -199,7 +211,7 @@ module.exports = {
                     rolemenu
                 );
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         `✅ Rôle ajouté : ${role}`,
@@ -214,7 +226,7 @@ module.exports = {
                     error
                 );
 
-                return interaction.reply({
+                return safeReply(interaction, {
 
                     content:
                         '❌ Impossible de modifier ton rôle.',
