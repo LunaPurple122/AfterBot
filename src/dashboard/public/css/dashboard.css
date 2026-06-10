@@ -184,6 +184,11 @@ h2 {
     color: #040711;
 }
 
+.button.danger {
+    background: rgba(251, 113, 133, 0.14);
+    color: var(--red);
+}
+
 .button.full {
     width: 100%;
 }
@@ -191,6 +196,7 @@ h2 {
 .panel {
     padding: 22px;
     border-radius: 8px;
+    margin-bottom: 18px;
 }
 
 .panel.narrow {
@@ -226,9 +232,14 @@ h2 {
 }
 
 .form-grid h1,
+.form-grid h2,
 .form-grid .wide,
 .form-grid .button {
     grid-column: 1 / -1;
+}
+
+.form-grid.compact {
+    margin-top: 14px;
 }
 
 label {
@@ -310,6 +321,52 @@ textarea {
     display: grid;
     grid-template-columns: minmax(150px, 1fr) 2fr minmax(100px, auto);
     gap: 12px;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel-2);
+}
+
+.table.simple > div,
+.table.role-options > form {
+    grid-template-columns: 1fr;
+}
+
+.module-block {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+}
+
+.actions,
+.inline-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 14px 0;
+}
+
+.actions form,
+.inline-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.actions select {
+    width: min(260px, 100%);
+}
+
+.role-options {
+    margin-top: 14px;
+}
+
+.role-options form {
+    display: grid;
+    grid-template-columns: 1fr repeat(4, minmax(90px, 1fr)) auto auto;
+    gap: 10px;
     align-items: center;
     padding: 12px;
     border: 1px solid var(--line);

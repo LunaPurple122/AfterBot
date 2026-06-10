@@ -1,0 +1,11 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Reglement</h1>
+    <%- include('partials/role-select', { label: 'Role donne apres acceptation', name: 'role_reglement_id', value: safeConfig.role_reglement_id, roles: safeOptions.roles }) %>
+    <label class="wide">Texte du reglement<textarea name="texte_reglement" rows="12" maxlength="4000"><%= safeConfig.texte_reglement || '' %></textarea></label>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

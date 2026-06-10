@@ -34,14 +34,21 @@
                 <nav>
                     <a href="/guilds">Serveurs</a>
                     <% if (safeCurrentGuild) { %>
-                        <a href="/guilds/<%= safeCurrentGuild.id %>">Vue globale</a>
-                        <a href="/guilds/<%= safeCurrentGuild.id %>/settings">Parametres</a>
-                        <a href="/guilds/<%= safeCurrentGuild.id %>/automod">Automod</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>">Vue d'ensemble</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/general">General</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/channels">Salons</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/roles">Roles</a>
                         <a href="/guilds/<%= safeCurrentGuild.id %>/logs">Logs</a>
-                        <a href="/guilds/<%= safeCurrentGuild.id %>/rolemenu">Role menu</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/welcome">Bienvenue</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/goodbye">Depart</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/captcha">Captcha</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/reglement">Reglement</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/automod">Automod</a>
                         <a href="/guilds/<%= safeCurrentGuild.id %>/tickets">Tickets</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/rolemenu">Role menu</a>
                         <a href="/guilds/<%= safeCurrentGuild.id %>/textes">Textes</a>
                         <a href="/guilds/<%= safeCurrentGuild.id %>/embeds">Embeds</a>
+                        <a href="/guilds/<%= safeCurrentGuild.id %>/stats">Stats</a>
                     <% } %>
                     <a href="/logout">Deconnexion</a>
                 </nav>

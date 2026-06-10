@@ -1,0 +1,25 @@
+<%
+    const safeStatsConfig = typeof statsConfig !== 'undefined' && statsConfig ? statsConfig : { config: null, adminRoles: [], summary: {} };
+    const safeConfig = safeStatsConfig.config || {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    const adminRoleIds = (safeStatsConfig.adminRoles || []).map(row => String(row.role_id));
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+    safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Statistiques</h1>
+    <% if (!safeStatsConfig.config) { %>
+        <p class="wide">Les tables stats ne sont pas disponibles.</p>
+    <% } %>
+    <label class="toggle"><input type="checkbox" name="enabled" <%= safeConfig.enabled !== false ? 'checked' : '' %>> Stats actives</label>
+    <%- include('partials/channel-select', { label: 'Salon leaderboard', name: 'leaderboard_channel_id', value: safeConfig.leaderboard_channel_id, channels: safeOptions.textChannels }) %>
+    <label>Heure quotidienne<input name="daily_send_time" pattern="[0-2][0-9]:[0-5][0-9]" value="<%= safeConfig.daily_send_time || '20:00' %>"></label>
+    <label>Roles admin stats
+        <select name="admin_role_ids" multiple size="6">
+            <% safeOptions.roles.forEach(role => { %>
+                <option value="<%= role.id %>" <%= adminRoleIds.includes(String(role.id)) ? 'selected' : '' %>><%= role.name %></option>
+            <% }) %>
+        </select>
+    </label>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

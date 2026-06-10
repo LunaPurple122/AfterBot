@@ -5,7 +5,7 @@ const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const pgSession = require('connect-pg-simple')(session);
-const { ChannelType } = require('discord.js');
+const { ChannelType, PermissionFlagsBits } = require('discord.js');
 
 const { pool } = require('../database/db');
 const {
@@ -18,17 +18,39 @@ const {
 } = require('./middlewares/auth');
 const {
     getAutomodConfig,
+    getOverviewData,
     getLogsConfig,
-    getRolemenus,
     getServerConfig,
-    getStatsSummary,
+    getStatsDashboardConfig,
+    getTicketConfig,
+    getTicketPingRoles,
     getTexts,
     getTicketsSummary,
     getWarnings,
+    replaceTicketPingRoles,
     updateAutomodConfig,
     updateLogsConfig,
-    updateServerConfig
+    updateServerFields,
+    updateStatsDashboardConfig,
+    updateTexts,
+    updateTicketConfig
 } = require('./services/dashboardData');
+
+const {
+    addRoleOption,
+    createRolemenu,
+    deleteRolemenu,
+    getRolemenu,
+    getRolemenuRoles,
+    listRolemenus,
+    removeRoleOption,
+    setRolemenuEnabled,
+    setRolemenuMessage,
+    syncRoleMenu,
+    updateRolemenu,
+    updateRoleOption
+} = require('../modules/rolemenu/services/roleMenuService');
+const { buildRolemenuPayload } = require('../modules/rolemenu/services/roleMenuRenderer');
 
 const app = express();
 const viewsDir = path.join(__dirname, 'views');
@@ -57,6 +79,16 @@ function getFlash(req) {
 
 function redirectWithSuccess(res, url, message) {
     res.redirect(`${url}?success=${encodeURIComponent(message)}`);
+}
+
+function redirectWithError(res, url, message) {
+    res.redirect(`${url}?error=${encodeURIComponent(message)}`);
+}
+
+function arrayValue(value) {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    return [value];
 }
 
 async function renderDashboard(res, view, locals = {}) {
@@ -234,6 +266,91 @@ async function withGuildContext(req, res, next) {
     }
 }
 
+function validateConfig(guild, data) {
+    const issues = [];
+    const me = guild.members.me;
+
+    function checkChannel(channelId, label, permissions = []) {
+        if (!channelId) return;
+
+        const channel = guild.channels.cache.get(channelId);
+
+        if (!channel) {
+            issues.push(`${label}: salon introuvable (${channelId}).`);
+            return;
+        }
+
+        const missing = permissions.filter(permission =>
+            !channel.permissionsFor(me)?.has(permission)
+        );
+
+        if (missing.length > 0) {
+            issues.push(`${label}: permissions bot insuffisantes.`);
+        }
+    }
+
+    function checkRole(roleId, label) {
+        if (!roleId) return;
+
+        const role = guild.roles.cache.get(roleId);
+
+        if (!role) {
+            issues.push(`${label}: role introuvable (${roleId}).`);
+            return;
+        }
+
+        if (!me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            issues.push(`${label}: le bot n a pas ManageRoles.`);
+        } else if (role.position >= me.roles.highest.position) {
+            issues.push(`${label}: le role est au-dessus du role du bot.`);
+        }
+    }
+
+    const server = data.serverConfig || {};
+    const automod = data.automod || {};
+    const ticketConfig = data.tickets?.config || {};
+    const statsConfig = data.stats?.config || {};
+    const sendPerms = [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks
+    ];
+
+    checkChannel(server.salon_logs_id, 'Logs generaux', sendPerms);
+    checkChannel(server.salon_bienvenue_id, 'Bienvenue', sendPerms);
+    checkChannel(server.salon_depart_id, 'Depart', sendPerms);
+    checkChannel(automod.logs_channel_id, 'Logs automod', sendPerms);
+    checkRole(server.role_reglement_id, 'Role reglement');
+
+    if (server.captcha_actif) {
+        checkRole(server.role_non_verifie_id, 'Role non verifie');
+        checkRole(server.role_membre_id, 'Role membre');
+
+        if (!server.categorie_captcha_id) {
+            issues.push('Captcha: categorie manquante.');
+        } else if (!guild.channels.cache.get(server.categorie_captcha_id)) {
+            issues.push('Captcha: categorie introuvable.');
+        }
+    }
+
+    if (ticketConfig) {
+        checkChannel(ticketConfig.panel_channel_id, 'Tickets panel', sendPerms);
+        checkChannel(ticketConfig.logs_channel_id, 'Tickets logs', sendPerms);
+        checkChannel(ticketConfig.alert_channel_id, 'Tickets alertes', sendPerms);
+        checkRole(ticketConfig.staff_role_id, 'Tickets staff');
+
+        if (ticketConfig.panel_channel_id && (!ticketConfig.staff_role_id || !ticketConfig.category_id)) {
+            issues.push('Tickets: configuration incomplete.');
+        }
+    }
+
+    if (statsConfig?.enabled) {
+        checkChannel(statsConfig.leaderboard_channel_id, 'Stats leaderboard', sendPerms);
+    }
+
+    return issues;
+}
+
 function guildUrl(req, suffix = '') {
     return `/guilds/${req.params.guildId}${suffix}`;
 }
@@ -343,21 +460,13 @@ app.get('/guilds/:guildId',
     withGuildContext,
     async (req, res, next) => {
         try {
-            const [serverConfig, automod, rolemenus, tickets, stats] = await Promise.all([
-                getServerConfig(req.params.guildId, req.currentGuild.name),
-                getAutomodConfig(req.params.guildId),
-                getRolemenus(req.params.guildId),
-                getTicketsSummary(req.params.guildId),
-                getStatsSummary(req.params.guildId)
-            ]);
+            const overview = await getOverviewData(req.params.guildId, req.guildAccess.botGuild);
+            const problems = validateConfig(req.guildAccess.botGuild, overview);
 
             return res.renderDashboard('guild-dashboard', {
                 title: req.currentGuild.name,
-                serverConfig,
-                automod,
-                rolemenus,
-                tickets,
-                stats
+                ...overview,
+                problems
             });
         } catch (error) {
             return next(error);
@@ -365,7 +474,11 @@ app.get('/guilds/:guildId',
     }
 );
 
-app.get('/guilds/:guildId/settings',
+app.get('/guilds/:guildId/settings', (req, res) => {
+    res.redirect(`/guilds/${req.params.guildId}/general`);
+});
+
+app.get('/guilds/:guildId/general',
     requireAuth,
     requireGuildAccess,
     requireAdminOrOwner,
@@ -373,7 +486,7 @@ app.get('/guilds/:guildId/settings',
     async (req, res, next) => {
         try {
             return res.renderDashboard('settings', {
-                title: 'Parametres',
+                title: 'General',
                 config: await getServerConfig(req.params.guildId, req.currentGuild.name),
                 options: req.dashboardOptions
             });
@@ -383,27 +496,238 @@ app.get('/guilds/:guildId/settings',
     }
 );
 
-app.post('/guilds/:guildId/settings',
+app.post('/guilds/:guildId/general',
     requireAuth,
     requireGuildAccess,
     requireAdminOrOwner,
     async (req, res, next) => {
         try {
-            await updateServerConfig(req.params.guildId, {
+            await updateServerFields(req.params.guildId, {
+                automod_actif: boolValue(req.body.automod_actif),
+                captcha_actif: boolValue(req.body.captcha_actif)
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/general'), 'Parametres generaux sauvegardes.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/channels',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('channels', {
+                title: 'Salons',
+                config: await getServerConfig(req.params.guildId, req.currentGuild.name),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/channels',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateServerFields(req.params.guildId, {
                 salon_logs_id: req.body.salon_logs_id,
                 salon_bienvenue_id: req.body.salon_bienvenue_id,
                 salon_depart_id: req.body.salon_depart_id,
-                salon_radio_id: req.body.salon_radio_id,
-                automod_actif: boolValue(req.body.automod_actif),
+                salon_radio_id: req.body.salon_radio_id
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/channels'), 'Salons sauvegardes.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/roles',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('roles', {
+                title: 'Roles',
+                config: await getServerConfig(req.params.guildId, req.currentGuild.name),
+                statsConfig: await getStatsDashboardConfig(req.params.guildId),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/roles',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateServerFields(req.params.guildId, {
+                role_non_verifie_id: req.body.role_non_verifie_id,
+                role_membre_id: req.body.role_membre_id,
+                role_reglement_id: req.body.role_reglement_id
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/roles'), 'Roles sauvegardes.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/welcome',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('welcome', {
+                title: 'Bienvenue',
+                config: await getServerConfig(req.params.guildId, req.currentGuild.name),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/welcome',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateServerFields(req.params.guildId, {
+                salon_bienvenue_id: req.body.salon_bienvenue_id
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/welcome'), 'Bienvenue sauvegarde.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/goodbye',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('goodbye', {
+                title: 'Depart',
+                config: await getServerConfig(req.params.guildId, req.currentGuild.name),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/goodbye',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateServerFields(req.params.guildId, {
+                salon_depart_id: req.body.salon_depart_id
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/goodbye'), 'Depart sauvegarde.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/captcha',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('captcha', {
+                title: 'Captcha',
+                config: await getServerConfig(req.params.guildId, req.currentGuild.name),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/captcha',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateServerFields(req.params.guildId, {
                 captcha_actif: boolValue(req.body.captcha_actif),
                 role_non_verifie_id: req.body.role_non_verifie_id,
                 role_membre_id: req.body.role_membre_id,
-                categorie_captcha_id: req.body.categorie_captcha_id,
+                categorie_captcha_id: req.body.categorie_captcha_id
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/captcha'), 'Captcha sauvegarde.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/reglement',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('reglement', {
+                title: 'Reglement',
+                config: await getServerConfig(req.params.guildId, req.currentGuild.name),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/reglement',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateServerFields(req.params.guildId, {
                 role_reglement_id: req.body.role_reglement_id,
                 texte_reglement: req.body.texte_reglement
             });
 
-            return redirectWithSuccess(res, guildUrl(req, '/settings'), 'Parametres sauvegardes.');
+            return redirectWithSuccess(res, guildUrl(req, '/reglement'), 'Reglement sauvegarde.');
         } catch (error) {
             return next(error);
         }
@@ -498,12 +822,24 @@ app.post('/guilds/:guildId/logs',
 app.get('/guilds/:guildId/rolemenu',
     requireAuth,
     requireGuildAccess,
+    requireAdminOrOwner,
     withGuildContext,
     async (req, res, next) => {
         try {
+            const rolemenus = await listRolemenus(req.params.guildId);
+            const menusWithRoles = [];
+
+            for (const menu of rolemenus) {
+                menusWithRoles.push({
+                    ...menu,
+                    roles: await getRolemenuRoles(menu.id)
+                });
+            }
+
             return res.renderDashboard('rolemenu', {
                 title: 'Role menus',
-                rolemenus: await getRolemenus(req.params.guildId)
+                rolemenus: menusWithRoles,
+                options: req.dashboardOptions
             });
         } catch (error) {
             return next(error);
@@ -511,16 +847,135 @@ app.get('/guilds/:guildId/rolemenu',
     }
 );
 
+app.post('/guilds/:guildId/rolemenu',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        const action = req.body.action;
+
+        try {
+            if (action === 'create') {
+                await createRolemenu(req.params.guildId, {
+                    nomInterne: req.body.nom_interne,
+                    titre: req.body.titre,
+                    description: req.body.description,
+                    placeholder: req.body.placeholder,
+                    couleur: req.body.couleur
+                });
+            }
+
+            if (action === 'update') {
+                await updateRolemenu(req.params.guildId, req.body.rolemenu_id, {
+                    nomInterne: req.body.nom_interne,
+                    titre: req.body.titre,
+                    description: req.body.description,
+                    placeholder: req.body.placeholder,
+                    couleur: req.body.couleur,
+                    channelId: req.body.channel_id
+                });
+            }
+
+            if (action === 'toggle') {
+                await setRolemenuEnabled(req.params.guildId, req.body.rolemenu_id, boolValue(req.body.actif));
+            }
+
+            if (action === 'delete') {
+                await deleteRolemenu(req.params.guildId, req.body.rolemenu_id);
+            }
+
+            if (action === 'add-role') {
+                await addRoleOption(req.body.rolemenu_id, {
+                    roleId: req.body.role_id,
+                    label: req.body.label,
+                    description: req.body.description,
+                    emoji: req.body.emoji,
+                    position: intValue(req.body.position, 0)
+                });
+            }
+
+            if (action === 'update-role') {
+                await updateRoleOption(req.body.rolemenu_id, req.body.role_id, {
+                    label: req.body.label,
+                    description: req.body.description,
+                    emoji: req.body.emoji,
+                    position: intValue(req.body.position, 0),
+                    actif: boolValue(req.body.actif)
+                });
+            }
+
+            if (action === 'remove-role') {
+                await removeRoleOption(req.body.rolemenu_id, req.body.role_id);
+            }
+
+            if (action === 'send') {
+                const rolemenu = await getRolemenu(req.params.guildId, req.body.rolemenu_id);
+                const channel = req.guildAccess.botGuild.channels.cache.get(req.body.channel_id);
+
+                if (!rolemenu || !channel?.isTextBased()) {
+                    return redirectWithError(res, guildUrl(req, '/rolemenu'), 'Rolemenu ou salon introuvable.');
+                }
+
+                const payload = await buildRolemenuPayload(req.guildAccess.botGuild, rolemenu);
+                const message = await channel.send(payload);
+                await setRolemenuMessage(req.params.guildId, rolemenu.id, channel.id, message.id);
+            }
+
+            if (action === 'sync') {
+                const result = await syncRoleMenu(getDiscordClient(), req.params.guildId, req.body.rolemenu_id);
+
+                if (!result.synced && !result.skipped) {
+                    return redirectWithError(res, guildUrl(req, '/rolemenu'), result.message);
+                }
+            }
+
+            return redirectWithSuccess(res, guildUrl(req, '/rolemenu'), 'Rolemenu sauvegarde.');
+        } catch (error) {
+            console.error('[Dashboard] Rolemenu:', error);
+            return redirectWithError(res, guildUrl(req, '/rolemenu'), 'Action rolemenu impossible.');
+        }
+    }
+);
+
 app.get('/guilds/:guildId/tickets',
     requireAuth,
     requireGuildAccess,
+    requireAdminOrOwner,
     withGuildContext,
     async (req, res, next) => {
         try {
             return res.renderDashboard('tickets', {
                 title: 'Tickets',
-                summary: await getTicketsSummary(req.params.guildId)
+                summary: await getTicketsSummary(req.params.guildId),
+                config: await getTicketConfig(req.params.guildId),
+                pingRoles: await getTicketPingRoles(req.params.guildId),
+                options: req.dashboardOptions
             });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/tickets',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateTicketConfig(req.params.guildId, {
+                panel_channel_id: req.body.panel_channel_id,
+                staff_role_id: req.body.staff_role_id,
+                category_id: req.body.category_id,
+                logs_channel_id: req.body.logs_channel_id,
+                alert_channel_id: req.body.alert_channel_id,
+                alert_message: req.body.alert_message
+            });
+
+            await replaceTicketPingRoles(req.params.guildId, arrayValue(req.body.ping_role_ids));
+
+            return redirectWithSuccess(res, guildUrl(req, '/tickets'), 'Tickets sauvegardes.');
         } catch (error) {
             return next(error);
         }
@@ -530,6 +985,7 @@ app.get('/guilds/:guildId/tickets',
 app.get('/guilds/:guildId/textes',
     requireAuth,
     requireGuildAccess,
+    requireAdminOrOwner,
     withGuildContext,
     async (req, res, next) => {
         try {
@@ -543,9 +999,66 @@ app.get('/guilds/:guildId/textes',
     }
 );
 
+app.post('/guilds/:guildId/textes',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateTexts(req.params.guildId, {
+                texte_reglement: req.body.texte_reglement,
+                ticket_alert_message: req.body.ticket_alert_message
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/textes'), 'Textes sauvegardes.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.get('/guilds/:guildId/stats',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    withGuildContext,
+    async (req, res, next) => {
+        try {
+            return res.renderDashboard('stats', {
+                title: 'Stats',
+                statsConfig: await getStatsDashboardConfig(req.params.guildId),
+                options: req.dashboardOptions
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
+app.post('/guilds/:guildId/stats',
+    requireAuth,
+    requireGuildAccess,
+    requireAdminOrOwner,
+    async (req, res, next) => {
+        try {
+            await updateStatsDashboardConfig(req.params.guildId, {
+                enabled: boolValue(req.body.enabled),
+                leaderboard_channel_id: req.body.leaderboard_channel_id,
+                daily_send_time: req.body.daily_send_time,
+                admin_role_ids: arrayValue(req.body.admin_role_ids)
+            });
+
+            return redirectWithSuccess(res, guildUrl(req, '/stats'), 'Stats sauvegardees.');
+        } catch (error) {
+            return next(error);
+        }
+    }
+);
+
 app.get('/guilds/:guildId/embeds',
     requireAuth,
     requireGuildAccess,
+    requireAdminOrOwner,
     withGuildContext,
     async (req, res) => {
         return res.renderDashboard('embeds', {

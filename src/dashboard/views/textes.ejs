@@ -1,8 +1,9 @@
 <%
     const safeTexts = typeof texts !== 'undefined' && texts ? texts : {};
 %>
-<section class="panel">
+<form class="panel form-grid" method="post">
     <h1>Textes</h1>
-    <label>Reglement<textarea readonly rows="10"><%= safeTexts.texte_reglement || 'Non configure' %></textarea></label>
-    <label>Message alerte tickets<textarea readonly rows="6"><%= safeTexts.ticket_alert_message || 'Non configure' %></textarea></label>
-</section>
+    <label class="wide">Reglement<textarea name="texte_reglement" rows="10" maxlength="4000"><%= safeTexts.texte_reglement || '' %></textarea></label>
+    <label class="wide">Message alerte tickets<textarea name="ticket_alert_message" rows="6"><%= safeTexts.ticket_alert_message || '' %></textarea></label>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

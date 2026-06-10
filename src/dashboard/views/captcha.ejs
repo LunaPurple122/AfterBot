@@ -1,13 +1,14 @@
 <%
     const safeConfig = typeof config !== 'undefined' && config ? config : {};
     const safeOptions = typeof options !== 'undefined' && options ? options : {};
-    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
     safeOptions.categories = Array.isArray(safeOptions.categories) ? safeOptions.categories : [];
     safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
 %>
 <form class="panel form-grid" method="post">
-    <h1>General</h1>
-    <label class="toggle"><input type="checkbox" name="automod_actif" <%= safeConfig.automod_actif ? 'checked' : '' %>> Automod actif</label>
+    <h1>Captcha</h1>
     <label class="toggle"><input type="checkbox" name="captcha_actif" <%= safeConfig.captcha_actif ? 'checked' : '' %>> Captcha actif</label>
+    <%- include('partials/role-select', { label: 'Role non verifie', name: 'role_non_verifie_id', value: safeConfig.role_non_verifie_id, roles: safeOptions.roles }) %>
+    <%- include('partials/role-select', { label: 'Role membre', name: 'role_membre_id', value: safeConfig.role_membre_id, roles: safeOptions.roles }) %>
+    <%- include('partials/channel-select', { label: 'Categorie captcha', name: 'categorie_captcha_id', value: safeConfig.categorie_captcha_id, channels: safeOptions.categories }) %>
     <button class="button primary" type="submit">Sauvegarder</button>
 </form>

@@ -1,18 +1,103 @@
 <%
     const safeRolemenus = Array.isArray(typeof rolemenus !== 'undefined' ? rolemenus : null) ? rolemenus : [];
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+    safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
 %>
+<form class="panel form-grid" method="post">
+    <h1>Nouveau role menu</h1>
+    <input type="hidden" name="action" value="create">
+    <label>Nom interne<input name="nom_interne" maxlength="100" required></label>
+    <label>Titre<input name="titre" maxlength="256" required></label>
+    <label>Placeholder<input name="placeholder" maxlength="100" placeholder="Choisis un role"></label>
+    <label>Couleur<input name="couleur" maxlength="7" placeholder="#5865F2"></label>
+    <label class="wide">Description<textarea name="description" rows="4" maxlength="4000"></textarea></label>
+    <button class="button primary" type="submit">Creer</button>
+</form>
+
 <section class="panel">
     <h1>Role menus</h1>
     <% if (safeRolemenus.length === 0) { %>
         <p>Aucun role menu configure.</p>
     <% } %>
-    <div class="table">
-        <% safeRolemenus.forEach(menu => { %>
-            <div>
-                <strong><%= menu.titre %></strong>
-                <span><%= menu.nom_interne %> - <%= menu.roles_count %> roles</span>
-                <small><%= menu.actif ? 'Actif' : 'Inactif' %></small>
+
+    <% safeRolemenus.forEach(menu => { %>
+        <div class="module-block">
+            <form class="form-grid compact" method="post">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                <h2>#<%= menu.id %> - <%= menu.nom_interne %></h2>
+                <label>Nom interne<input name="nom_interne" value="<%= menu.nom_interne %>" maxlength="100"></label>
+                <label>Titre<input name="titre" value="<%= menu.titre %>" maxlength="256"></label>
+                <label>Placeholder<input name="placeholder" value="<%= menu.placeholder || '' %>" maxlength="100"></label>
+                <label>Couleur<input name="couleur" value="<%= menu.couleur ? `#${menu.couleur}` : '' %>" maxlength="7"></label>
+                <%- include('partials/channel-select', { label: 'Salon cible', name: 'channel_id', value: menu.channel_id, channels: safeOptions.textChannels }) %>
+                <label class="wide">Description<textarea name="description" rows="3" maxlength="4000"><%= menu.description || '' %></textarea></label>
+                <button class="button primary" type="submit">Sauvegarder</button>
+            </form>
+
+            <div class="actions">
+                <form method="post">
+                    <input type="hidden" name="action" value="toggle">
+                    <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                    <input type="hidden" name="actif" value="<%= menu.actif ? 'false' : 'true' %>">
+                    <button class="button" type="submit"><%= menu.actif ? 'Desactiver' : 'Activer' %></button>
+                </form>
+                <form method="post">
+                    <input type="hidden" name="action" value="sync">
+                    <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                    <button class="button" type="submit">Synchroniser</button>
+                </form>
+                <form method="post" class="inline-form">
+                    <input type="hidden" name="action" value="send">
+                    <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                    <select name="channel_id">
+                        <% safeOptions.textChannels.forEach(channel => { %>
+                            <option value="<%= channel.id %>"># <%= channel.name %></option>
+                        <% }) %>
+                    </select>
+                    <button class="button" type="submit">Envoyer</button>
+                </form>
+                <form method="post">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                    <button class="button danger" type="submit">Supprimer</button>
+                </form>
             </div>
-        <% }) %>
-    </div>
+
+            <form class="form-grid compact" method="post">
+                <input type="hidden" name="action" value="add-role">
+                <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                <%- include('partials/role-select', { label: 'Role', name: 'role_id', value: '', roles: safeOptions.roles }) %>
+                <label>Label<input name="label" maxlength="100" required></label>
+                <label>Description<input name="description" maxlength="100"></label>
+                <label>Emoji<input name="emoji" maxlength="64"></label>
+                <label>Position<input type="number" name="position" value="0"></label>
+                <button class="button" type="submit">Ajouter le role</button>
+            </form>
+
+            <div class="table role-options">
+                <% (menu.roles || []).forEach(option => { %>
+                    <form method="post">
+                        <input type="hidden" name="action" value="update-role">
+                        <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                        <input type="hidden" name="role_id" value="<%= option.role_id %>">
+                        <strong><%= option.label %></strong>
+                        <input name="label" value="<%= option.label %>" maxlength="100">
+                        <input name="description" value="<%= option.description || '' %>" maxlength="100">
+                        <input name="emoji" value="<%= option.emoji || '' %>" maxlength="64">
+                        <input type="number" name="position" value="<%= option.position || 0 %>">
+                        <label class="toggle"><input type="checkbox" name="actif" <%= option.actif ? 'checked' : '' %>> Actif</label>
+                        <button class="button" type="submit">OK</button>
+                    </form>
+                    <form method="post">
+                        <input type="hidden" name="action" value="remove-role">
+                        <input type="hidden" name="rolemenu_id" value="<%= menu.id %>">
+                        <input type="hidden" name="role_id" value="<%= option.role_id %>">
+                        <button class="button danger" type="submit">Retirer <%= option.label %></button>
+                    </form>
+                <% }) %>
+            </div>
+        </div>
+    <% }) %>
 </section>

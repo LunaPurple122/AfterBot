@@ -1,18 +1,34 @@
 <%
     const safeSummary = typeof summary !== 'undefined' && summary ? summary : { config: null, tickets: [] };
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    const safePingRoles = Array.isArray(typeof pingRoles !== 'undefined' ? pingRoles : null) ? pingRoles : [];
     const safeTicketRows = Array.isArray(safeSummary.tickets) ? safeSummary.tickets : [];
+    const selectedPingRoles = safePingRoles.map(row => String(row.role_id));
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+    safeOptions.categories = Array.isArray(safeOptions.categories) ? safeOptions.categories : [];
+    safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
 %>
-<section class="panel">
+<form class="panel form-grid" method="post">
     <h1>Tickets</h1>
-    <% if (!safeSummary.config) { %>
-        <p>Configuration tickets absente.</p>
-    <% } else { %>
-        <div class="inline-stats">
-            <span><strong><%= safeSummary.config.panel_channel_id || '-' %></strong> panel</span>
-            <span><strong><%= safeSummary.config.staff_role_id || '-' %></strong> staff</span>
-            <span><strong><%= safeSummary.config.logs_channel_id || '-' %></strong> logs</span>
-        </div>
-    <% } %>
+    <%- include('partials/channel-select', { label: 'Salon du panel', name: 'panel_channel_id', value: safeConfig.panel_channel_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/role-select', { label: 'Role staff', name: 'staff_role_id', value: safeConfig.staff_role_id, roles: safeOptions.roles }) %>
+    <%- include('partials/channel-select', { label: 'Categorie tickets', name: 'category_id', value: safeConfig.category_id, channels: safeOptions.categories }) %>
+    <%- include('partials/channel-select', { label: 'Salon logs tickets', name: 'logs_channel_id', value: safeConfig.logs_channel_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Salon alertes staff', name: 'alert_channel_id', value: safeConfig.alert_channel_id, channels: safeOptions.textChannels }) %>
+    <label>Roles ping tickets
+        <select name="ping_role_ids" multiple size="6">
+            <% safeOptions.roles.forEach(role => { %>
+                <option value="<%= role.id %>" <%= selectedPingRoles.includes(String(role.id)) ? 'selected' : '' %>><%= role.name %></option>
+            <% }) %>
+        </select>
+    </label>
+    <label class="wide">Message d'alerte staff<textarea name="alert_message" rows="6"><%= safeConfig.alert_message || '' %></textarea></label>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>
+
+<section class="panel">
+    <h2>Activite</h2>
     <div class="table">
         <% safeTicketRows.forEach(row => { %>
             <div><strong><%= row.ouvert ? 'Ouverts' : 'Fermes' %></strong><span><%= row.total %> tickets</span></div>

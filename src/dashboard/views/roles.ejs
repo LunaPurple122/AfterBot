@@ -1,0 +1,12 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.roles = Array.isArray(safeOptions.roles) ? safeOptions.roles : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Roles</h1>
+    <%- include('partials/role-select', { label: 'Role non verifie', name: 'role_non_verifie_id', value: safeConfig.role_non_verifie_id, roles: safeOptions.roles }) %>
+    <%- include('partials/role-select', { label: 'Role membre', name: 'role_membre_id', value: safeConfig.role_membre_id, roles: safeOptions.roles }) %>
+    <%- include('partials/role-select', { label: 'Role reglement', name: 'role_reglement_id', value: safeConfig.role_reglement_id, roles: safeOptions.roles }) %>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

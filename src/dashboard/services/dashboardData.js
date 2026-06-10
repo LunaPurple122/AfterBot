@@ -62,6 +62,8 @@ async function getServerConfig(guildId, guildName = null) {
 }
 
 async function updateServerConfig(guildId, values) {
+    await getServerConfig(guildId);
+
     await pool.query(
         `
         UPDATE serveurs
@@ -95,6 +97,24 @@ async function updateServerConfig(guildId, values) {
             guildId
         ]
     );
+}
+
+async function updateServerFields(guildId, values) {
+    const current = await getServerConfig(guildId);
+
+    await updateServerConfig(guildId, {
+        salon_logs_id: values.salon_logs_id ?? current.salon_logs_id,
+        salon_bienvenue_id: values.salon_bienvenue_id ?? current.salon_bienvenue_id,
+        salon_depart_id: values.salon_depart_id ?? current.salon_depart_id,
+        salon_radio_id: values.salon_radio_id ?? current.salon_radio_id,
+        automod_actif: values.automod_actif ?? current.automod_actif,
+        captcha_actif: values.captcha_actif ?? current.captcha_actif,
+        role_non_verifie_id: values.role_non_verifie_id ?? current.role_non_verifie_id,
+        role_membre_id: values.role_membre_id ?? current.role_membre_id,
+        categorie_captcha_id: values.categorie_captcha_id ?? current.categorie_captcha_id,
+        role_reglement_id: values.role_reglement_id ?? current.role_reglement_id,
+        texte_reglement: values.texte_reglement ?? current.texte_reglement
+    });
 }
 
 async function getAutomodConfig(guildId) {
@@ -254,6 +274,104 @@ async function getTicketsSummary(guildId) {
     return { config, tickets };
 }
 
+async function getTicketConfig(guildId) {
+    if (!await tableExists('ticket_config')) return null;
+
+    const result = await pool.query(
+        'SELECT * FROM ticket_config WHERE serveur_id = $1;',
+        [guildId]
+    );
+
+    return result.rows[0] || {
+        serveur_id: guildId,
+        panel_channel_id: null,
+        staff_role_id: null,
+        category_id: null,
+        logs_channel_id: null,
+        alert_channel_id: null,
+        alert_message: null
+    };
+}
+
+async function updateTicketConfig(guildId, values) {
+    await pool.query(
+        `
+        INSERT INTO ticket_config (
+            serveur_id,
+            panel_channel_id,
+            staff_role_id,
+            category_id,
+            logs_channel_id,
+            alert_channel_id,
+            alert_message
+        )
+        VALUES ($1, NULLIF($2, ''), NULLIF($3, ''), NULLIF($4, ''), NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''))
+        ON CONFLICT (serveur_id)
+        DO UPDATE SET
+            panel_channel_id = EXCLUDED.panel_channel_id,
+            staff_role_id = EXCLUDED.staff_role_id,
+            category_id = EXCLUDED.category_id,
+            logs_channel_id = EXCLUDED.logs_channel_id,
+            alert_channel_id = EXCLUDED.alert_channel_id,
+            alert_message = EXCLUDED.alert_message;
+        `,
+        [
+            guildId,
+            values.panel_channel_id,
+            values.staff_role_id,
+            values.category_id,
+            values.logs_channel_id,
+            values.alert_channel_id,
+            values.alert_message
+        ]
+    );
+}
+
+async function getTicketPingRoles(guildId) {
+    if (!await tableExists('ticket_ping_roles')) return [];
+
+    const result = await pool.query(
+        `
+        SELECT role_id
+        FROM ticket_ping_roles
+        WHERE serveur_id = $1
+        ORDER BY id ASC;
+        `,
+        [guildId]
+    );
+
+    return result.rows;
+}
+
+async function replaceTicketPingRoles(guildId, roleIds) {
+    const uniqueRoleIds = [...new Set((roleIds || []).filter(Boolean))];
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM ticket_ping_roles WHERE serveur_id = $1;', [guildId]);
+
+        for (const roleId of uniqueRoleIds) {
+            await client.query(
+                `
+                INSERT INTO ticket_ping_roles (serveur_id, role_id)
+                VALUES ($1, $2)
+                ON CONFLICT (serveur_id, role_id)
+                DO NOTHING;
+                `,
+                [guildId, roleId]
+            );
+        }
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 async function getTexts(guildId) {
     const server = await getServerConfig(guildId);
     const ticketConfig = await tableExists('ticket_config')
@@ -267,6 +385,21 @@ async function getTexts(guildId) {
         texte_reglement: server.texte_reglement,
         ticket_alert_message: ticketConfig?.alert_message || null
     };
+}
+
+async function updateTexts(guildId, values) {
+    await updateServerFields(guildId, {
+        texte_reglement: values.texte_reglement
+    });
+
+    if (await tableExists('ticket_config')) {
+        const current = await getTicketConfig(guildId);
+
+        await updateTicketConfig(guildId, {
+            ...current,
+            alert_message: values.ticket_alert_message
+        });
+    }
 }
 
 async function getWarnings(guildId) {
@@ -304,19 +437,142 @@ async function getStatsSummary(guildId) {
     return { memberStats };
 }
 
+async function getStatsDashboardConfig(guildId) {
+    if (!await tableExists('stats_config')) {
+        return {
+            config: null,
+            adminRoles: []
+        };
+    }
+
+    const hasStatsAdminRoles = await tableExists('stats_admin_roles');
+    const [configResult, adminRolesResult, summary] = await Promise.all([
+        pool.query('SELECT * FROM stats_config WHERE guild_id = $1;', [guildId]),
+        hasStatsAdminRoles
+            ? pool.query(
+                'SELECT role_id FROM stats_admin_roles WHERE guild_id = $1 ORDER BY created_at ASC;',
+                [guildId]
+            )
+            : Promise.resolve({ rows: [] }),
+        getStatsSummary(guildId)
+    ]);
+
+    return {
+        config: configResult.rows[0] || {
+            guild_id: guildId,
+            enabled: true,
+            leaderboard_channel_id: null,
+            daily_send_time: '20:00'
+        },
+        adminRoles: adminRolesResult.rows,
+        summary
+    };
+}
+
+async function updateStatsDashboardConfig(guildId, values) {
+    if (!await tableExists('stats_config')) return;
+
+    await pool.query(
+        `
+        INSERT INTO stats_config (
+            guild_id,
+            enabled,
+            leaderboard_channel_id,
+            daily_send_time,
+            updated_at
+        )
+        VALUES ($1, $2, NULLIF($3, ''), $4, CURRENT_TIMESTAMP)
+        ON CONFLICT (guild_id)
+        DO UPDATE SET
+            enabled = EXCLUDED.enabled,
+            leaderboard_channel_id = EXCLUDED.leaderboard_channel_id,
+            daily_send_time = EXCLUDED.daily_send_time,
+            updated_at = CURRENT_TIMESTAMP;
+        `,
+        [
+            guildId,
+            values.enabled,
+            values.leaderboard_channel_id,
+            values.daily_send_time || '20:00'
+        ]
+    );
+
+    if (await tableExists('stats_admin_roles')) {
+        const uniqueRoleIds = [...new Set((values.admin_role_ids || []).filter(Boolean))];
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+            await client.query('DELETE FROM stats_admin_roles WHERE guild_id = $1;', [guildId]);
+
+            for (const roleId of uniqueRoleIds) {
+                await client.query(
+                    `
+                    INSERT INTO stats_admin_roles (guild_id, role_id)
+                    VALUES ($1, $2)
+                    ON CONFLICT (guild_id, role_id)
+                    DO NOTHING;
+                    `,
+                    [guildId, roleId]
+                );
+            }
+
+            await client.query('COMMIT');
+        } catch (error) {
+            await client.query('ROLLBACK');
+            throw error;
+        } finally {
+            client.release();
+        }
+    }
+}
+
+async function getOverviewData(guildId, guild) {
+    const [
+        serverConfig,
+        automod,
+        tickets,
+        rolemenus,
+        stats
+    ] = await Promise.all([
+        getServerConfig(guildId, guild?.name),
+        getAutomodConfig(guildId),
+        getTicketsSummary(guildId),
+        getRolemenus(guildId),
+        getStatsDashboardConfig(guildId)
+    ]);
+
+    return {
+        serverConfig,
+        automod,
+        tickets,
+        rolemenus,
+        stats
+    };
+}
+
 module.exports = {
     columnExists,
     getDbOwnerId,
     getServerConfig,
+    updateServerFields,
     updateServerConfig,
     getAutomodConfig,
     updateAutomodConfig,
     getLogsConfig,
     updateLogsConfig,
+    getOverviewData,
     getRolemenus,
+    getStatsDashboardConfig,
+    updateStatsDashboardConfig,
+    getTicketConfig,
+    getTicketPingRoles,
     getTicketsSummary,
     getTexts,
+    replaceTicketPingRoles,
     getWarnings,
+    updateTexts,
+    updateTicketConfig,
     getStatsSummary,
     tableExists
 };

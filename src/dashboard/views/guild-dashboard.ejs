@@ -6,12 +6,13 @@
     const safeTickets = typeof tickets !== 'undefined' && tickets ? tickets : { tickets: [] };
     const safeTicketRows = Array.isArray(safeTickets.tickets) ? safeTickets.tickets : [];
     const safeStats = typeof stats !== 'undefined' && stats ? stats : { memberStats: null };
+    const safeProblems = Array.isArray(typeof problems !== 'undefined' ? problems : null) ? problems : [];
 %>
 <section class="grid metrics">
-    <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/settings">
-        <span class="eyebrow">Configuration</span>
-        <h2><%= safeServerConfig.captcha_actif ? 'Captcha actif' : 'Captcha inactif' %></h2>
-        <p>Logs, bienvenue, roles et reglement.</p>
+    <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/general">
+        <span class="eyebrow">General</span>
+        <h2><%= safeServerConfig.automod_actif ? 'Automod active' : 'Automod global off' %></h2>
+        <p>Captcha: <%= safeServerConfig.captcha_actif ? 'active' : 'inactif' %></p>
     </a>
     <a class="card" href="/guilds/<%= safeCurrentGuild.id %>/automod">
         <span class="eyebrow">Automod</span>
@@ -28,6 +29,30 @@
         <h2><%= safeRolemenus.length %> menus</h2>
         <p>Menus de roles synchronises en DB.</p>
     </a>
+</section>
+
+<section class="panel">
+    <h2>Configuration detectee</h2>
+    <div class="inline-stats">
+        <span><strong><%= safeServerConfig.salon_logs_id ? 'Oui' : 'Non' %></strong> logs</span>
+        <span><strong><%= safeServerConfig.salon_bienvenue_id ? 'Oui' : 'Non' %></strong> bienvenue</span>
+        <span><strong><%= safeServerConfig.salon_depart_id ? 'Oui' : 'Non' %></strong> depart</span>
+        <span><strong><%= safeServerConfig.role_reglement_id ? 'Oui' : 'Non' %></strong> role reglement</span>
+        <span><strong><%= safeTickets.config ? 'Oui' : 'Non' %></strong> tickets</span>
+    </div>
+</section>
+
+<section class="panel">
+    <h2>Problemes de configuration</h2>
+    <% if (safeProblems.length === 0) { %>
+        <p>Aucun probleme detecte avec les salons, roles et permissions connus.</p>
+    <% } else { %>
+        <div class="table simple">
+            <% safeProblems.forEach(problem => { %>
+                <div><span><%= problem %></span></div>
+            <% }) %>
+        </div>
+    <% } %>
 </section>
 
 <section class="panel">

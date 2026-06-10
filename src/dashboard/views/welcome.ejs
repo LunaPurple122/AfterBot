@@ -1,0 +1,10 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Bienvenue</h1>
+    <%- include('partials/channel-select', { label: 'Salon de bienvenue', name: 'salon_bienvenue_id', value: safeConfig.salon_bienvenue_id, channels: safeOptions.textChannels }) %>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>

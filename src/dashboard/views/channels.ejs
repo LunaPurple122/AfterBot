@@ -1,0 +1,13 @@
+<%
+    const safeConfig = typeof config !== 'undefined' && config ? config : {};
+    const safeOptions = typeof options !== 'undefined' && options ? options : {};
+    safeOptions.textChannels = Array.isArray(safeOptions.textChannels) ? safeOptions.textChannels : [];
+%>
+<form class="panel form-grid" method="post">
+    <h1>Salons</h1>
+    <%- include('partials/channel-select', { label: 'Logs generaux', name: 'salon_logs_id', value: safeConfig.salon_logs_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Bienvenue', name: 'salon_bienvenue_id', value: safeConfig.salon_bienvenue_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Depart', name: 'salon_depart_id', value: safeConfig.salon_depart_id, channels: safeOptions.textChannels }) %>
+    <%- include('partials/channel-select', { label: 'Radio', name: 'salon_radio_id', value: safeConfig.salon_radio_id, channels: safeOptions.textChannels }) %>
+    <button class="button primary" type="submit">Sauvegarder</button>
+</form>
