@@ -453,7 +453,7 @@ async function getStatsDashboardConfig(guildId) {
                 'SELECT role_id FROM stats_admin_roles WHERE guild_id = $1 ORDER BY created_at ASC;',
                 [guildId]
             )
-            : Promise.resolve({ rows: [] }),
+            : { rows: [] },
         getStatsSummary(guildId)
     ]);
 
@@ -533,7 +533,7 @@ async function getOverviewData(guildId, guild) {
         automod,
         tickets,
         rolemenus,
-        stats
+        statsDashboard
     ] = await Promise.all([
         getServerConfig(guildId, guild?.name),
         getAutomodConfig(guildId),
@@ -547,7 +547,8 @@ async function getOverviewData(guildId, guild) {
         automod,
         tickets,
         rolemenus,
-        stats
+        stats: statsDashboard.summary || { memberStats: null },
+        statsConfig: statsDashboard
     };
 }
 

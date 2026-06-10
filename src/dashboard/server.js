@@ -91,6 +91,80 @@ function arrayValue(value) {
     return [value];
 }
 
+function isPromiseLike(value) {
+    return Boolean(value && typeof value.then === 'function');
+}
+
+function isPlainObject(value) {
+    return Object.prototype.toString.call(value) === '[object Object]';
+}
+
+async function resolvePromiseValues(value, keyPath) {
+    if (isPromiseLike(value)) {
+        console.error(`[Dashboard] Promise non resolue passee a la vue : ${keyPath}`);
+        return resolvePromiseValues(await value, keyPath);
+    }
+
+    if (Array.isArray(value)) {
+        const resolved = [];
+
+        for (let index = 0; index < value.length; index++) {
+            resolved.push(await resolvePromiseValues(value[index], `${keyPath}[${index}]`));
+        }
+
+        return resolved;
+    }
+
+    if (isPlainObject(value)) {
+        const resolved = {};
+
+        for (const [key, childValue] of Object.entries(value)) {
+            resolved[key] = await resolvePromiseValues(childValue, `${keyPath}.${key}`);
+        }
+
+        return resolved;
+    }
+
+    return value;
+}
+
+function normalizeDashboardLocals(locals) {
+    const normalized = { ...locals };
+
+    normalized.config = isPlainObject(normalized.config) ? normalized.config : {};
+    normalized.serverConfig = isPlainObject(normalized.serverConfig) ? normalized.serverConfig : {};
+    normalized.automod = isPlainObject(normalized.automod) ? normalized.automod : {};
+    normalized.currentGuild = isPlainObject(normalized.currentGuild) ? normalized.currentGuild : null;
+    normalized.guild = isPlainObject(normalized.guild) ? normalized.guild : normalized.currentGuild;
+    normalized.guilds = Array.isArray(normalized.guilds) ? normalized.guilds : [];
+    normalized.rolemenus = Array.isArray(normalized.rolemenus) ? normalized.rolemenus : [];
+    normalized.warnings = Array.isArray(normalized.warnings) ? normalized.warnings : [];
+
+    normalized.options = isPlainObject(normalized.options) ? normalized.options : {};
+    normalized.options.textChannels = Array.isArray(normalized.options.textChannels)
+        ? normalized.options.textChannels
+        : [];
+    normalized.options.categories = Array.isArray(normalized.options.categories)
+        ? normalized.options.categories
+        : [];
+    normalized.options.roles = Array.isArray(normalized.options.roles)
+        ? normalized.options.roles
+        : [];
+
+    normalized.summary = isPlainObject(normalized.summary) ? normalized.summary : {};
+    normalized.summary.tickets = Array.isArray(normalized.summary.tickets)
+        ? normalized.summary.tickets
+        : [];
+    normalized.tickets = isPlainObject(normalized.tickets) ? normalized.tickets : {};
+    normalized.tickets.tickets = Array.isArray(normalized.tickets.tickets)
+        ? normalized.tickets.tickets
+        : [];
+    normalized.stats = isPlainObject(normalized.stats) ? normalized.stats : { memberStats: null };
+    normalized.texts = isPlainObject(normalized.texts) ? normalized.texts : {};
+
+    return normalized;
+}
+
 async function renderDashboard(res, view, locals = {}) {
     const defaultLocals = {
         title: 'AfterBot Dashboard',
@@ -129,7 +203,7 @@ async function renderDashboard(res, view, locals = {}) {
             ticket_alert_message: null
         }
     };
-    const viewLocals = {
+    const mergedLocals = {
         ...defaultLocals,
         ...locals,
         flash: {
@@ -157,6 +231,13 @@ async function renderDashboard(res, view, locals = {}) {
             ...(locals.texts || {})
         }
     };
+    const resolvedLocals = {};
+
+    for (const [key, value] of Object.entries(mergedLocals)) {
+        resolvedLocals[key] = await resolvePromiseValues(value, key);
+    }
+
+    const viewLocals = normalizeDashboardLocals(resolvedLocals);
 
     const body = await ejs.renderFile(
         path.join(viewsDir, `${view}.ejs`),
