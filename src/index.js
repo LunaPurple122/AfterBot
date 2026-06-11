@@ -1,221 +1,254 @@
 require('dotenv').config();
 
-const { validateEnv } = require('./core/env');
-validateEnv();
-
-const { testDatabaseConnection } = require('./database/db');
-const { initDatabase } = require('./database/init');
-const { envoyerLog } = require('./core/logger');
 const {
-    recoverActiveVoiceSessions
-} = require('./modules/stats/services/voiceSessionService');
-const {
-    startStatsScheduler
-} = require('./modules/stats/services/statsSchedulerService');
-const {
-    startBumpReminders
-} = require('./modules/bump/services/bumpService');
+    checkLicense
+} = require('./security/licenseCheck');
 
-const fs = require('fs');
-const path = require('path');
+async function startBot() {
+    await checkLicense();
 
-const {
-    Client,
-    Collection,
-    GatewayIntentBits,
-    Events,
-    Partials
-} = require('discord.js');
+    const { validateEnv } = require('./core/env');
+    validateEnv();
 
-const {
-    isIgnoredInteractionError,
-    patchInteractionResponses,
-    safeDeferReply,
-    safeReply
-} = require('./core/interactions');
+    const { testDatabaseConnection } = require('./database/db');
+    const { initDatabase } = require('./database/init');
+    const { envoyerLog } = require('./core/logger');
+    const {
+        recoverActiveVoiceSessions
+    } = require('./modules/stats/services/voiceSessionService');
+    const {
+        startStatsScheduler
+    } = require('./modules/stats/services/statsSchedulerService');
+    const {
+        startBumpReminders
+    } = require('./modules/bump/services/bumpService');
 
-const client = new Client({
-    intents: [
-        // Guilds: slash commands, salons, rôles et configuration serveur.
-        GatewayIntentBits.Guilds,
-        // GuildMessages + MessageContent: automod, captcha, tickets et logs de messages.
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        // GuildMembers: bienvenue/départ, captcha, autoroles, modération membres.
-        GatewayIntentBits.GuildMembers,
-        // GuildModeration: bans, unbans et audit logs de modération.
-        GatewayIntentBits.GuildModeration,
-        // GuildVoiceStates: logs des connexions, départs et déplacements vocaux.
-        GatewayIntentBits.GuildVoiceStates,
-        // GuildExpressions: logs emojis/stickers.
-        GatewayIntentBits.GuildExpressions
-    ],
+    const fs = require('fs');
+    const path = require('path');
 
-    partials: [
-        Partials.Message,
-        Partials.Channel,
-        Partials.Reaction
-    ]
-});
+    const {
+        Client,
+        Collection,
+        GatewayIntentBits,
+        Events,
+        Partials
+    } = require('discord.js');
 
-require('./dashboard/server').setClient(client);
+    const {
+        isIgnoredInteractionError,
+        patchInteractionResponses,
+        safeDeferReply,
+        safeReply
+    } = require('./core/interactions');
 
-client.commands = new Collection();
+    const client = new Client({
+        intents: [
+            // Guilds: slash commands, salons, roles et configuration serveur.
+            GatewayIntentBits.Guilds,
+            // GuildMessages + MessageContent: automod, captcha, tickets et logs de messages.
+            GatewayIntentBits.GuildMessages,
+            GatewayIntentBits.MessageContent,
+            // GuildMembers: bienvenue/depart, captcha, autoroles, moderation membres.
+            GatewayIntentBits.GuildMembers,
+            // GuildModeration: bans, unbans et audit logs de moderation.
+            GatewayIntentBits.GuildModeration,
+            // GuildVoiceStates: logs des connexions, departs et deplacements vocaux.
+            GatewayIntentBits.GuildVoiceStates,
+            // GuildExpressions: logs emojis/stickers.
+            GatewayIntentBits.GuildExpressions
+        ],
 
-const modulesPath = path.join(__dirname, 'modules');
+        partials: [
+            Partials.Message,
+            Partials.Channel,
+            Partials.Reaction
+        ]
+    });
 
-process.on('unhandledRejection', error => {
-    console.error(
-        'Unhandled rejection:',
-        error
-    );
-});
+    require('./dashboard/server').setClient(client);
 
-process.on('uncaughtException', error => {
-    console.error(
-        'Uncaught exception:',
-        error
-    );
-});
+    client.commands = new Collection();
 
-client.on('error', error => {
-    console.error(
-        'Erreur client Discord:',
-        error
-    );
-});
+    const modulesPath =
+        path.join(__dirname, 'modules');
 
-client.on(Events.InteractionCreate, interaction => {
-    patchInteractionResponses(interaction);
-});
+    process.on('unhandledRejection', error => {
+        console.error(
+            'Unhandled rejection:',
+            error
+        );
+    });
 
-function recupererFichiers(dossier) {
+    process.on('uncaughtException', error => {
+        console.error(
+            'Uncaught exception:',
+            error
+        );
+    });
 
-    let fichiers = [];
+    client.on('error', error => {
+        console.error(
+            'Erreur client Discord:',
+            error
+        );
+    });
 
-    const elements =
-        fs.readdirSync(dossier, {
-            withFileTypes: true
-        });
+    client.on(Events.InteractionCreate, interaction => {
+        patchInteractionResponses(interaction);
+    });
 
-    for (const element of elements) {
+    function recupererFichiers(dossier) {
+        let fichiers = [];
 
-        const chemin =
-            path.join(dossier, element.name);
+        const elements =
+            fs.readdirSync(dossier, {
+                withFileTypes: true
+            });
 
-        if (element.isDirectory()) {
+        for (const element of elements) {
+            const chemin =
+                path.join(dossier, element.name);
 
-            fichiers =
-                fichiers.concat(
-                    recupererFichiers(chemin)
-                );
+            if (element.isDirectory()) {
+                fichiers =
+                    fichiers.concat(
+                        recupererFichiers(chemin)
+                    );
 
-        } else if (
-            element.name.endsWith('.js')
-        ) {
-
-            fichiers.push(chemin);
-        }
-    }
-
-    return fichiers;
-}
-
-function normaliserEvents(loadedFile) {
-    if (
-        loadedFile &&
-        loadedFile.name &&
-        loadedFile.execute
-    ) {
-        return [loadedFile];
-    }
-
-    return Object.values(loadedFile);
-}
-
-function registerEvent(event) {
-    const handler = async (...args) => {
-        const interaction =
-            args.find(arg =>
-                arg &&
-                typeof arg.isRepliable === 'function' &&
-                arg.isRepliable()
-            );
-
-        if (interaction) {
-            patchInteractionResponses(interaction);
-        }
-
-        try {
-            await event.execute(...args);
-        } catch (error) {
-            if (isIgnoredInteractionError(error)) {
-                console.warn(
-                    `Interaction expirée ou déjà acquittée dans l'event ${event.name} : ${error.message}`
-                );
-                return;
+            } else if (
+                element.name.endsWith('.js')
+            ) {
+                fichiers.push(chemin);
             }
+        }
 
-            console.error(
-                `Erreur dans l'event ${event.name} :`,
-                error
-            );
+        return fichiers;
+    }
+
+    function normaliserEvents(loadedFile) {
+        if (
+            loadedFile &&
+            loadedFile.name &&
+            loadedFile.execute
+        ) {
+            return [loadedFile];
+        }
+
+        return Object.values(loadedFile);
+    }
+
+    function registerEvent(event) {
+        const handler = async (...args) => {
+            const interaction =
+                args.find(arg =>
+                    arg &&
+                    typeof arg.isRepliable === 'function' &&
+                    arg.isRepliable()
+                );
 
             if (interaction) {
-                await safeReply(interaction, {
-                    content:
-                        '❌ Une erreur est survenue.',
-                    ephemeral: true
-                });
+                patchInteractionResponses(interaction);
             }
-        }
-    };
 
-    if (event.once) {
-        client.once(event.name, handler);
-        return;
+            try {
+                await event.execute(...args);
+            } catch (error) {
+                if (isIgnoredInteractionError(error)) {
+                    console.warn(
+                        `Interaction expiree ou deja acquittee dans l'event ${event.name} : ${error.message}`
+                    );
+                    return;
+                }
+
+                console.error(
+                    `Erreur dans l'event ${event.name} :`,
+                    error
+                );
+
+                if (interaction) {
+                    await safeReply(interaction, {
+                        content:
+                            '❌ Une erreur est survenue.',
+                        ephemeral: true
+                    });
+                }
+            }
+        };
+
+        if (event.once) {
+            client.once(event.name, handler);
+            return;
+        }
+
+        client.on(event.name, handler);
     }
 
-    client.on(event.name, handler);
-}
+    // COMMANDES
+    const commandFiles =
+        recupererFichiers(modulesPath);
 
-// COMMANDES
-const commandFiles =
-    recupererFichiers(modulesPath);
+    for (const filePath of commandFiles) {
+        const command =
+            require(filePath);
 
-for (const filePath of commandFiles) {
+        if (!command.data) continue;
 
-    const command =
-        require(filePath);
+        client.commands.set(
+            command.data.name,
+            command
+        );
 
-    if (!command.data) continue;
+        console.log(
+            `✅ Commande chargee : ${command.data.name}`
+        );
+    }
 
-    client.commands.set(
-        command.data.name,
-        command
-    );
+    // EVENTS CLASSIQUES
+    const eventsPath =
+        path.join(__dirname, 'events');
 
-    console.log(
-`✅ Commande chargée : ${command.data.name}`
-    );
-}
+    if (fs.existsSync(eventsPath)) {
+        const eventFiles =
+            fs.readdirSync(eventsPath)
+                .filter(file =>
+                    file.endsWith('.js')
+                );
 
-// EVENTS CLASSIQUES
-const eventsPath =
-    path.join(__dirname, 'events');
+        for (const file of eventFiles) {
+            const filePath =
+                path.join(eventsPath, file);
 
-if (fs.existsSync(eventsPath)) {
+            const loadedFile =
+                require(filePath);
 
-    const eventFiles =
-        fs.readdirSync(eventsPath)
-            .filter(file =>
-                file.endsWith('.js')
-            );
+            const events =
+                normaliserEvents(loadedFile);
 
-    for (const file of eventFiles) {
+            for (const event of events) {
+                if (
+                    !event.name ||
+                    !event.execute
+                ) continue;
 
-        const filePath =
-            path.join(eventsPath, file);
+                registerEvent(event);
+
+                console.log(
+                    `✅ Event charge : ${event.name}`
+                );
+            }
+        }
+    }
+
+    // EVENTS MODULES
+    const moduleEventFiles =
+        recupererFichiers(modulesPath);
+
+    for (const filePath of moduleEventFiles) {
+        if (
+            !filePath.includes(
+                `${path.sep}events${path.sep}`
+            )
+        ) continue;
 
         const loadedFile =
             require(filePath);
@@ -224,7 +257,6 @@ if (fs.existsSync(eventsPath)) {
             normaliserEvents(loadedFile);
 
         for (const event of events) {
-
             if (
                 !event.name ||
                 !event.execute
@@ -233,73 +265,36 @@ if (fs.existsSync(eventsPath)) {
             registerEvent(event);
 
             console.log(
-`✅ Event chargé : ${event.name}`
+                `✅ Event charge : ${event.name}`
             );
         }
     }
-}
 
-// EVENTS MODULES
-const moduleEventFiles =
-    recupererFichiers(modulesPath);
-
-for (const filePath of moduleEventFiles) {
-
-    if (
-        !filePath.includes(
-            `${path.sep}events${path.sep}`
-        )
-    ) continue;
-
-    const loadedFile =
-        require(filePath);
-
-    const events =
-        normaliserEvents(loadedFile);
-
-    for (const event of events) {
-
-        if (
-            !event.name ||
-            !event.execute
-        ) continue;
-
-        registerEvent(event);
-
+    client.once(Events.ClientReady, async readyClient => {
         console.log(
-`✅ Event chargé : ${event.name}`
+            `🤖 Connecte en tant que ${readyClient.user.tag}`
         );
-    }
-}
 
-client.once(Events.ClientReady, async readyClient => {
+        await testDatabaseConnection();
 
-    console.log(
-`🤖 Connecté en tant que ${readyClient.user.tag}`
-    );
+        await initDatabase();
 
-    await testDatabaseConnection();
+        await recoverActiveVoiceSessions(readyClient);
 
-    await initDatabase();
+        startStatsScheduler(readyClient);
 
-    await recoverActiveVoiceSessions(readyClient);
+        await startBumpReminders(readyClient);
+    });
 
-    startStatsScheduler(readyClient);
+    client.on(Events.InteractionCreate, async interaction => {
+        if (!interaction.isChatInputCommand()) return;
 
-    await startBumpReminders(readyClient);
-});
+        patchInteractionResponses(interaction);
 
-client.on(Events.InteractionCreate, async interaction => {
+        envoyerLog(client, interaction.guild?.id, {
+            titre: '🤖 Commande utilisee',
 
-    if (!interaction.isChatInputCommand()) return;
-
-    patchInteractionResponses(interaction);
-
-    envoyerLog(client, interaction.guild?.id, {
-
-        titre: '🤖 Commande utilisée',
-
-        description:
+            description:
 `👤 Utilisateur : ${interaction.user}
 
 ⚡ Commande :
@@ -308,48 +303,58 @@ client.on(Events.InteractionCreate, async interaction => {
 📍 Salon :
 ${interaction.channel}`,
 
-        couleur: 0x5865F2,
+            couleur: 0x5865F2,
 
-        auteur: interaction.user
-    }).catch(error => {
-        console.error(
-            `Erreur log commande /${interaction.commandName}:`,
-            error
-        );
-    });
+            auteur: interaction.user
+        }).catch(error => {
+            console.error(
+                `Erreur log commande /${interaction.commandName}:`,
+                error
+            );
+        });
 
-    const command =
-        client.commands.get(
-            interaction.commandName
-        );
+        const command =
+            client.commands.get(
+                interaction.commandName
+            );
 
-    if (!command) return;
+        if (!command) return;
 
-    try {
-        if (command.deferOnStart) {
-            await safeDeferReply(interaction, {
+        try {
+            if (command.deferOnStart) {
+                await safeDeferReply(interaction, {
+                    ephemeral: true
+                });
+            }
+
+            await command.execute(interaction);
+
+        } catch (error) {
+            if (isIgnoredInteractionError(error)) {
+                console.warn(
+                    `Interaction expiree ou deja acquittee /${interaction.commandName} : ${error.message}`
+                );
+                return;
+            }
+
+            console.error(error);
+
+            await safeReply(interaction, {
+                content:
+                    '❌ Une erreur est survenue.',
                 ephemeral: true
             });
         }
+    });
 
-        await command.execute(interaction);
+    await client.login(process.env.DISCORD_TOKEN);
+}
 
-    } catch (error) {
-        if (isIgnoredInteractionError(error)) {
-            console.warn(
-                `Interaction expirée ou déjà acquittée /${interaction.commandName} : ${error.message}`
-            );
-            return;
-        }
+startBot().catch(error => {
+    console.error(
+        'Demarrage du bot impossible:',
+        error
+    );
 
-        console.error(error);
-
-        await safeReply(interaction, {
-            content:
-                '❌ Une erreur est survenue.',
-            ephemeral: true
-        });
-    }
+    process.exit(1);
 });
-
-client.login(process.env.DISCORD_TOKEN);
