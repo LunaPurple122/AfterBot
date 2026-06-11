@@ -353,8 +353,8 @@ ${interaction.channel}`,
 startBot().catch(error => {
     console.error(
         'Demarrage du bot impossible:',
-        error
+        error.message || error
     );
 
-    process.exit(1);
+    process.exitCode = 1;
 });

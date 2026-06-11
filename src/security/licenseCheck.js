@@ -17,6 +17,15 @@ const cachePath =
         'license-cache.json'
     );
 
+class LicenseCheckError extends Error {
+    constructor(message, code, details = {}) {
+        super(message);
+        this.name = 'LicenseCheckError';
+        this.code = code;
+        this.details = details;
+    }
+}
+
 function wait(ms) {
     return new Promise(resolve => {
         setTimeout(resolve, ms);
@@ -205,6 +214,8 @@ async function requestLicenseCheck(env, machineId) {
             controller.abort();
         }, REQUEST_TIMEOUT_MS);
 
+    timeout.unref?.();
+
     try {
         const response =
             await fetch(
@@ -301,11 +312,14 @@ async function checkLicense() {
             }
 
             if (result?.authorized === false) {
-                console.error(
-                    `Licence refusee: ${result.reason || 'raison inconnue'}`
+                throw new LicenseCheckError(
+                    `Licence refusee: ${result.reason || 'raison inconnue'}`,
+                    'LICENSE_REFUSED',
+                    {
+                        reason:
+                            result.reason || null
+                    }
                 );
-
-                process.exit(1);
             }
 
             throw new Error(
@@ -313,6 +327,10 @@ async function checkLicense() {
             );
 
         } catch (error) {
+            if (error instanceof LicenseCheckError) {
+                throw error;
+            }
+
             lastError = error;
 
             console.warn(
@@ -339,32 +357,33 @@ async function checkLicense() {
         return true;
     }
 
-    console.error(
-        'Serveur de licences inaccessible et aucun cache valide.'
+    throw new LicenseCheckError(
+        lastError
+            ? `Serveur de licences inaccessible et aucun cache valide. Derniere erreur licence: ${lastError.message}`
+            : 'Serveur de licences inaccessible et aucun cache valide.',
+        'LICENSE_UNAVAILABLE',
+        {
+            cause:
+                lastError?.message || null
+        }
     );
-
-    if (lastError) {
-        console.error(
-            `Derniere erreur licence: ${lastError.message}`
-        );
-    }
-
-    process.exit(1);
 }
 
 if (require.main === module) {
     checkLicense()
         .then(() => {
             console.log('Licence valide');
+            process.exitCode = 0;
         })
         .catch(error => {
             console.error(
-                `Erreur licence: ${error.message}`
+                error.message || 'Erreur licence inconnue.'
             );
-            process.exit(1);
+            process.exitCode = 1;
         });
 }
 
 module.exports = {
-    checkLicense
+    checkLicense,
+    LicenseCheckError
 };
