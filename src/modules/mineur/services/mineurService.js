@@ -115,6 +115,27 @@ async function listMinorBans(guildId) {
     return result.rows;
 }
 
+async function getMinorBan(guildId, userId) {
+    const result = await pool.query(`
+        SELECT user_id, username, banned_at, ban_reason
+        FROM mineur_bans
+        WHERE guild_id = $1
+        AND user_id = $2
+    `, [guildId, userId]);
+
+    return result.rows[0] || null;
+}
+
+async function deleteMinorBan(guildId, userId) {
+    const result = await pool.query(`
+        DELETE FROM mineur_bans
+        WHERE guild_id = $1
+        AND user_id = $2
+    `, [guildId, userId]);
+
+    return result.rowCount > 0;
+}
+
 async function memberCanManageMineur(member) {
     if (!member?.guild) return false;
 
@@ -236,6 +257,177 @@ ${success ? 'Ban effectue' : `Erreur - ${errorMessage || 'raison inconnue'}`}`,
             error
         );
     }
+}
+
+async function logMinorUnban({
+    client,
+    guild,
+    userId,
+    username,
+    moderator,
+    wasBanned,
+    unbanSuccess,
+    deleteSuccess,
+    errorMessage
+}) {
+    try {
+        await envoyerLog(client, guild.id, {
+            type: 'punisher',
+            titre: 'Retrait ban mineur',
+            description:
+`Utilisateur :
+${username || 'Inconnu'}
+
+ID :
+${userId}
+
+Administrateur :
+${moderator}
+
+Debannissement Discord :
+${wasBanned ? (unbanSuccess ? 'Effectue' : 'Echec') : 'Utilisateur deja debanni'}
+
+Suppression mineur_bans :
+${deleteSuccess ? 'Effectuee' : 'Echec'}
+
+${errorMessage ? `Erreur :\n${errorMessage}` : 'Aucune erreur.'}`,
+            couleur: unbanSuccess || !wasBanned ? 0x57F287 : 0xFEE75C,
+            auteur: moderator
+        });
+
+    } catch (error) {
+        console.error(
+            `Impossible d'envoyer le log de retrait mineur pour ${userId} :`,
+            error
+        );
+    }
+}
+
+async function sendMinorUnbanDm(client, userId, guildName) {
+    try {
+        const user =
+            await client.users.fetch(userId);
+
+        await user.send({
+            content:
+                `Tu as ete debanni de ${guildName}. Tu peux a nouveau rejoindre le serveur.`
+        });
+
+        return true;
+
+    } catch (error) {
+        console.error(
+            `Impossible d'envoyer le MP de deban mineur a ${userId} :`,
+            error
+        );
+
+        return false;
+    }
+}
+
+async function removeMinorBanEntry({
+    guild,
+    userId,
+    moderator
+}) {
+    const entry =
+        await getMinorBan(
+            guild.id,
+            userId
+        );
+
+    if (!entry) {
+        return {
+            status: 'not_found'
+        };
+    }
+
+    let ban = null;
+    let wasBanned = false;
+    let unbanSuccess = false;
+    let unbanError = null;
+    let deleteSuccess = false;
+
+    try {
+        ban =
+            await guild.bans.fetch(userId);
+
+        wasBanned = Boolean(ban);
+
+    } catch (error) {
+        wasBanned = false;
+    }
+
+    if (wasBanned) {
+        try {
+            await guild.members.unban(
+                userId,
+                `Retrait du systeme mineur par ${moderator.tag}`
+            );
+
+            unbanSuccess = true;
+
+            await sendMinorUnbanDm(
+                guild.client,
+                userId,
+                guild.name
+            );
+
+        } catch (error) {
+            unbanError =
+                error;
+
+            console.error(
+                `Impossible de debannir ${userId} via le module mineur :`,
+                error
+            );
+        }
+    }
+
+    try {
+        deleteSuccess =
+            await deleteMinorBan(
+                guild.id,
+                userId
+            );
+
+    } catch (error) {
+        console.error(
+            `Impossible de supprimer l'entree mineur_bans ${userId} :`,
+            error
+        );
+
+        throw error;
+    }
+
+    await logMinorUnban({
+        client: guild.client,
+        guild,
+        userId,
+        username: ban?.user?.tag || entry.username,
+        moderator,
+        wasBanned,
+        unbanSuccess,
+        deleteSuccess,
+        errorMessage: unbanError?.message || null
+    });
+
+    if (!wasBanned) {
+        return {
+            status: 'already_unbanned'
+        };
+    }
+
+    if (!unbanSuccess) {
+        return {
+            status: 'unban_failed',
+            error: unbanError?.message || 'erreur inconnue'
+        };
+    }
+
+    return {
+        status: 'removed'
+    };
 }
 
 async function executeMinorBan(member, triggerRole, options = {}) {
@@ -392,6 +584,7 @@ module.exports = {
     listMinorBans,
     listMinorRoles,
     memberCanManageMineur,
+    removeMinorBanEntry,
     removeMinorRole,
     setDmMessage
 };

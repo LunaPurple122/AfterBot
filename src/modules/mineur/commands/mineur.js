@@ -27,6 +27,7 @@ const {
     listMinorBans,
     listMinorRoles,
     memberCanManageMineur,
+    removeMinorBanEntry,
     removeMinorRole
 } = require('../services/mineurService');
 
@@ -259,6 +260,66 @@ Erreurs : ${errors.length}${errorLines}`
     });
 }
 
+async function handleRemoveBan(interaction) {
+    const deferred =
+        await safeDeferReply(interaction, {
+            ephemeral: true
+        });
+
+    if (!deferred) return null;
+
+    if (!await requireBotPermission(
+        interaction,
+        PermissionFlagsBits.BanMembers,
+        'Ban Members'
+    )) return null;
+
+    const userId =
+        interaction.options
+            .getString('user_id')
+            .trim();
+
+    if (!/^\d{17,20}$/.test(userId)) {
+        return safeReply(interaction, {
+            content:
+                '❌ ID utilisateur Discord invalide.'
+        });
+    }
+
+    const result =
+        await removeMinorBanEntry({
+            guild: interaction.guild,
+            userId,
+            moderator: interaction.user
+        });
+
+    if (result.status === 'not_found') {
+        return safeReply(interaction, {
+            content:
+                `❌ Aucun utilisateur avec l'ID ${userId} n'a été trouvé dans la liste des membres bannis.`
+        });
+    }
+
+    if (result.status === 'already_unbanned') {
+        return safeReply(interaction, {
+            content:
+                `✅ L'utilisateur ${userId} n'était plus banni. Son enregistrement a été retiré de la base de données.`
+        });
+    }
+
+    if (result.status === 'unban_failed') {
+        return safeReply(interaction, {
+            content:
+                `⚠️ L'utilisateur ${userId} a été retiré de la base de données, mais le débannissement Discord a échoué : ${result.error}`
+        });
+    }
+
+    return safeReply(interaction, {
+        content:
+            `✅ L'utilisateur ${userId} a été retiré de la liste des membres bannis et a été débanni du serveur.`
+    });
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('mineur')
@@ -312,6 +373,17 @@ module.exports = {
         )
         .addSubcommand(subcommand =>
             subcommand
+                .setName('remove')
+                .setDescription('Retirer un utilisateur des bans mineurs et le debannir.')
+                .addStringOption(option =>
+                    option
+                        .setName('user_id')
+                        .setDescription('ID Discord de l utilisateur')
+                        .setRequired(true)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('verif')
                 .setDescription('Scanner les membres et bannir ceux avec un role mineur.')
         ),
@@ -356,6 +428,10 @@ module.exports = {
 
             if (subcommand === 'list') {
                 return handleBanList(interaction);
+            }
+
+            if (subcommand === 'remove') {
+                return handleRemoveBan(interaction);
             }
 
             if (subcommand === 'verif') {
