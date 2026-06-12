@@ -22,6 +22,9 @@ const {
     safeReply
 } = require('../../../core/interactions');
 
+const { envoyerLogMessage } =
+    require('../../../core/logger');
+
 module.exports = {
 
     ticketCloseModalEvent: {
@@ -84,30 +87,6 @@ module.exports = {
                 });
             }
 
-            const configResult =
-                await pool.query(
-
-                    `
-                    SELECT *
-                    FROM ticket_config
-                    WHERE serveur_id = $1
-                    `,
-
-                    [
-                        interaction.guild.id
-                    ]
-                );
-
-            const config =
-                configResult.rows[0];
-
-            const logsChannel =
-                config?.logs_channel_id
-                    ? interaction.guild.channels.cache.get(
-                        config.logs_channel_id
-                    )
-                    : null;
-
             if (!await requireBotPermission(
                 interaction,
                 PermissionFlagsBits.ManageChannels,
@@ -149,33 +128,35 @@ module.exports = {
                 );
 
             // TRANSCRIPTS
-            if (logsChannel) {
+            // MEMBER TRANSCRIPT
+            if (ticketChannel) {
 
-                // MEMBER TRANSCRIPT
-                if (ticketChannel) {
+                const transcript =
+                    await genererTranscript(
+                        ticketChannel
+                    );
 
-                    const transcript =
-                        await genererTranscript(
-                            ticketChannel
-                        );
+                const file =
+                    new AttachmentBuilder(
 
-                    const file =
-                        new AttachmentBuilder(
+                        Buffer.from(
+                            transcript,
+                            'utf-8'
+                        ),
 
-                            Buffer.from(
-                                transcript,
-                                'utf-8'
-                            ),
-
-                            {
-                                name:
+                        {
+                            name:
 `ticket-${ticket.id}.txt`
-                            }
-                        );
+                        }
+                    );
 
-                    await logsChannel.send({
+                await envoyerLogMessage(
+                    interaction.client,
+                    interaction.guild.id,
+                    'ticket',
+                    {
 
-                        content:
+                    content:
 `🎫 Transcript ticket
 ID : ${ticket.id}
 
@@ -185,35 +166,40 @@ ${reason}
 🛡️ Fermé par :
 ${interaction.user}`,
 
-                        files: [file]
-                    });
-                }
+                    files: [file]
+                    }
+                );
+            }
 
-                // STAFF TRANSCRIPT
-                if (staffChannel) {
+            // STAFF TRANSCRIPT
+            if (staffChannel) {
 
-                    const transcript =
-                        await genererTranscript(
-                            staffChannel
-                        );
+                const transcript =
+                    await genererTranscript(
+                        staffChannel
+                    );
 
-                    const file =
-                        new AttachmentBuilder(
+                const file =
+                    new AttachmentBuilder(
 
-                            Buffer.from(
-                                transcript,
-                                'utf-8'
-                            ),
+                        Buffer.from(
+                            transcript,
+                            'utf-8'
+                        ),
 
-                            {
-                                name:
+                        {
+                            name:
 `staff-${ticket.id}.txt`
-                            }
-                        );
+                        }
+                    );
 
-                    await logsChannel.send({
+                await envoyerLogMessage(
+                    interaction.client,
+                    interaction.guild.id,
+                    'ticket',
+                    {
 
-                        content:
+                    content:
 `🛡️ Transcript staff
 ID : ${ticket.id}
 
@@ -223,9 +209,9 @@ ${reason}
 🛡️ Fermé par :
 ${interaction.user}`,
 
-                        files: [file]
-                    });
-                }
+                    files: [file]
+                    }
+                );
             }
 
             await safeReply(interaction, {

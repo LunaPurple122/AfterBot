@@ -188,6 +188,7 @@ module.exports = {
                     : '';
 
             await envoyerLog(member.client, member.guild.id, {
+                type: 'user',
 
                 titre: '👋 Nouveau membre',
 

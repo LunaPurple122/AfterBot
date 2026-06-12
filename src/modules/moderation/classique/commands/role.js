@@ -220,6 +220,7 @@ ${role}`
                 interaction.guild.id,
 
                 {
+                    type: 'user',
 
                     titre:
                         '🎭 Rôle ajouté',
@@ -298,6 +299,7 @@ ${role}`
                 interaction.guild.id,
 
                 {
+                    type: 'user',
 
                     titre:
                         '🗑️ Rôle retiré',

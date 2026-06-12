@@ -52,6 +52,7 @@ module.exports = {
             }
 
             await envoyerLog(ban.client, ban.guild.id, {
+                type: 'punisher',
 
                 titre: '🔨 Membre banni',
 
@@ -106,6 +107,7 @@ ${ban.reason || '*Aucune raison fournie*'}`,
             }
 
             await envoyerLog(ban.client, ban.guild.id, {
+                type: 'punisher',
 
                 titre: '🔓 Membre débanni',
 
@@ -149,6 +151,7 @@ ${moderateur || 'Inconnu'}`,
                 ) {
 
                     await envoyerLog(member.client, member.guild.id, {
+                        type: 'punisher',
 
                         titre: '🔨 Membre expulsé',
 
@@ -211,6 +214,7 @@ ${log.reason || '*Aucune raison fournie*'}`,
                 }
 
                 await envoyerLog(newMember.client, newMember.guild.id, {
+                    type: 'punisher',
 
                     titre: '⏳ Membre timeout',
 
@@ -260,6 +264,7 @@ ${moderateur || 'Inconnu'}
                 }
 
                 await envoyerLog(newMember.client, newMember.guild.id, {
+                    type: 'punisher',
 
                     titre: '🔊 Membre untimeout',
 
@@ -310,6 +315,7 @@ ${moderateur || 'Inconnu'}`,
             }
 
             await envoyerLog(channel.client, channel.guild.id, {
+                type: 'msg_sup',
 
                 titre: '🧹 Suppression massive',
 

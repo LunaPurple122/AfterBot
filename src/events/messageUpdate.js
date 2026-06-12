@@ -31,6 +31,7 @@ module.exports = {
         if (oldMessage.content === newMessage.content) return;
 
         await envoyerLog(oldMessage.client, oldMessage.guild.id, {
+            type: 'msg_mod',
 
             titre: '✏️ Message modifié',
 

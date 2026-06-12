@@ -51,6 +51,7 @@ module.exports = {
             }
 
             await envoyerLog(role.client, role.guild.id, {
+                type: 'serveur',
 
                 titre: '🎭 Rôle créé',
 
@@ -100,6 +101,7 @@ ${moderateur
             }
 
             await envoyerLog(role.client, role.guild.id, {
+                type: 'serveur',
 
                 titre: '🗑️ Rôle supprimé',
 
@@ -151,6 +153,7 @@ ${moderateur
             if (oldRole.name === newRole.name) return;
 
             await envoyerLog(newRole.client, newRole.guild.id, {
+                type: 'serveur',
 
                 titre: '✏️ Rôle modifié',
 

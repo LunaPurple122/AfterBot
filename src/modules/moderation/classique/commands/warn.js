@@ -272,6 +272,7 @@ ${totalWarns}`
                 interaction.guild.id,
 
                 {
+                    type: 'punisher',
 
                     titre:
                         '⚠️ Avertissement',
@@ -407,6 +408,7 @@ ${total}`
                 interaction.guild.id,
 
                 {
+                    type: 'punisher',
 
                     titre:
                         '🗑️ Warns supprimés',

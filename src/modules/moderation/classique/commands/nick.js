@@ -207,6 +207,7 @@ ${pseudo}`
                 interaction.guild.id,
 
                 {
+                    type: 'user',
 
                     titre:
                         '📝 Pseudo modifié',
@@ -273,6 +274,7 @@ ${ancienPseudo}`
                 interaction.guild.id,
 
                 {
+                    type: 'user',
 
                     titre:
                         '🔄 Pseudo réinitialisé',

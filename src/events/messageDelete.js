@@ -82,6 +82,7 @@ module.exports = {
                 }
 
                 await envoyerLog(message.client, message.guild.id, {
+                    type: 'msg_sup',
 
                     titre: '🗑️ Message supprimé',
 

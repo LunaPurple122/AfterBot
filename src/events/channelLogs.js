@@ -53,6 +53,7 @@ module.exports = {
             }
 
             await envoyerLog(channel.client, channel.guild.id, {
+                type: 'serveur',
 
                 titre: '📁 Salon créé',
 
@@ -107,6 +108,7 @@ ${moderateur
             }
 
             await envoyerLog(channel.client, channel.guild.id, {
+                type: 'serveur',
 
                 titre: '🗑️ Salon supprimé',
 
@@ -163,6 +165,7 @@ ${moderateur
             if (oldChannel.name === newChannel.name) return;
 
             await envoyerLog(newChannel.client, newChannel.guild.id, {
+                type: 'serveur',
 
                 titre: '✏️ Salon modifié',
 

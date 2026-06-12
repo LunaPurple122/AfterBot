@@ -292,6 +292,8 @@ async function startBot() {
         patchInteractionResponses(interaction);
 
         envoyerLog(client, interaction.guild?.id, {
+            type: 'cmd',
+
             titre: '🤖 Commande utilisee',
 
             description:

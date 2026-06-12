@@ -93,6 +93,7 @@ ${rolesRetires.map(role => role).join(', ')}
 ${moderateur || 'Inconnu'}`;
 
             await envoyerLog(newMember.client, newMember.guild.id, {
+                type: 'user',
 
                 titre: '🎭 Mise à jour des rôles',
 

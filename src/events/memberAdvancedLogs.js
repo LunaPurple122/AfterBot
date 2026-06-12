@@ -53,6 +53,7 @@ module.exports = {
                 }
 
                 await envoyerLog(newMember.client, newMember.guild.id, {
+                    type: 'user',
 
                     titre: '✏️ Pseudo serveur modifié',
 
@@ -93,6 +94,7 @@ ${moderateur || newMember.user}`,
                 for (const guild of mutualGuilds.values()) {
 
                     await envoyerLog(newUser.client, guild.id, {
+                        type: 'user',
 
                         titre: '👤 Username modifié',
 
@@ -134,6 +136,7 @@ ${newUser.username}`,
                 for (const guild of mutualGuilds.values()) {
 
                     await envoyerLog(newUser.client, guild.id, {
+                        type: 'user',
 
                         titre: '🖼️ Avatar modifié',
 

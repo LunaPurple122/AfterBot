@@ -6,6 +6,9 @@ const {
 const { pool } =
     require('../../../database/db');
 
+const { envoyerLogMessage } =
+    require('../../../core/logger');
+
 module.exports = {
 
     antiMassMentionEvent: {
@@ -98,14 +101,11 @@ module.exports = {
             }
 
             // LOG
-            const logsChannel =
-                message.guild.channels.cache.get(
-                    config.logs_channel_id
-                );
-
-            if (logsChannel) {
-
-                await logsChannel.send({
+            await envoyerLogMessage(
+                message.client,
+                message.guild.id,
+                'alerte',
+                {
 
                     content:
 `🚨 Mass mention détectée
@@ -121,8 +121,8 @@ ${hasGlobalMention ? 'Oui' : 'Non'}
 
 🔨 Timeout :
 ${config.mass_mention_timeout_minutes} minutes`
-                });
-            }
+                }
+            );
         }
     }
 };

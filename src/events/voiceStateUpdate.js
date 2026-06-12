@@ -18,6 +18,7 @@ module.exports = {
             if (!oldState.channel && newState.channel) {
 
                 await envoyerLog(member.client, member.guild.id, {
+                    type: 'voc',
 
                     titre: '🎤 Connexion vocale',
 
@@ -37,6 +38,7 @@ ${newState.channel}`,
             else if (oldState.channel && !newState.channel) {
 
                 await envoyerLog(member.client, member.guild.id, {
+                    type: 'voc',
 
                     titre: '🚪 Déconnexion vocale',
 
@@ -60,6 +62,7 @@ ${oldState.channel}`,
             ) {
 
                 await envoyerLog(member.client, member.guild.id, {
+                    type: 'voc',
 
                     titre: '🔄 Déplacement vocal',
 

@@ -152,6 +152,7 @@ module.exports = {
                 interaction.guild.id,
 
                 {
+                    type: 'serveur',
 
                     titre:
                         '🔒 Salon verrouillé',
@@ -213,6 +214,7 @@ ${interaction.user}`,
                 interaction.guild.id,
 
                 {
+                    type: 'serveur',
 
                     titre:
                         '🔓 Salon déverrouillé',
@@ -303,6 +305,7 @@ ${dureeInput}`
                 interaction.guild.id,
 
                 {
+                    type: 'serveur',
 
                     titre:
                         '🐌 Slowmode modifié',

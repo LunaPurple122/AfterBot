@@ -6,6 +6,9 @@ const {
 const { pool } =
     require('../../../database/db');
 
+const { envoyerLogMessage } =
+    require('../../../core/logger');
+
 const spamCache =
     new Map();
 
@@ -135,14 +138,11 @@ module.exports = {
             }
 
             // LOG
-            const logsChannel =
-                message.guild.channels.cache.get(
-                    config.logs_channel_id
-                );
-
-            if (logsChannel) {
-
-                await logsChannel.send({
+            await envoyerLogMessage(
+                message.client,
+                message.guild.id,
+                'alerte',
+                {
 
                     content:
 `🚨 Spam détecté
@@ -158,8 +158,8 @@ ${config.spam_interval}s
 
 🔨 Timeout :
 ${config.spam_timeout_minutes} minutes`
-                });
-            }
+                }
+            );
 
             // RESET CACHE
             spamCache.delete(userId);

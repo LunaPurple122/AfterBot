@@ -280,6 +280,7 @@ Confirmer le kick de ces membres ?`,
                         interaction.client,
                         interaction.guild.id,
                         {
+                            type: 'punisher',
                             titre: 'Kick test réussi',
                             description:
 `Membre :
@@ -313,6 +314,7 @@ ${raison}`,
                         interaction.client,
                         interaction.guild.id,
                         {
+                            type: 'punisher',
                             titre: 'Kick test échoué',
                             description:
 `Membre :

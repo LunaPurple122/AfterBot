@@ -6,6 +6,9 @@ const {
 const { pool } =
     require('../../../database/db');
 
+const { envoyerLogMessage } =
+    require('../../../core/logger');
+
 const joinCache =
     new Map();
 
@@ -108,14 +111,11 @@ module.exports = {
                 return;
             }
 
-            const logsChannel =
-                member.guild.channels.cache.get(
-                    config.logs_channel_id
-                );
-
-            if (logsChannel) {
-
-                await logsChannel.send({
+            await envoyerLogMessage(
+                member.client,
+                member.guild.id,
+                'alerte',
+                {
 
                     content:
 `🚨 Raid détecté
@@ -128,8 +128,8 @@ ${config.raid_join_interval} secondes
 
 🔒 Lockdown :
 ${config.raid_lockdown_minutes} minutes`
-                });
-            }
+                }
+            );
 
             const channels =
                 member.guild.channels.cache.filter(
@@ -161,14 +161,16 @@ ${config.raid_lockdown_minutes} minutes`
                 }
             }
 
-            if (logsChannel) {
-
-                await logsChannel.send({
+            await envoyerLogMessage(
+                member.client,
+                member.guild.id,
+                'alerte',
+                {
 
                     content:
                         '🔒 Lockdown automatique activé.'
-                });
-            }
+                }
+            );
 
             setTimeout(async () => {
 
@@ -194,14 +196,16 @@ ${config.raid_lockdown_minutes} minutes`
 
                 joinCache.delete(guildId);
 
-                if (logsChannel) {
-
-                    await logsChannel.send({
+                await envoyerLogMessage(
+                    member.client,
+                    member.guild.id,
+                    'alerte',
+                    {
 
                         content:
                             '🔓 Lockdown automatique désactivé.'
-                    });
-                }
+                    }
+                );
 
             }, config.raid_lockdown_minutes * 60 * 1000);
         }

@@ -183,6 +183,7 @@ ${totalSupprime}`
                 interaction.guild.id,
 
                 {
+                    type: 'msg_sup',
 
                     titre:
                         '🧹 Clear global membre',
@@ -285,6 +286,7 @@ ${totalSupprime}`
             interaction.guild.id,
 
             {
+                type: 'msg_sup',
 
                 titre: '🧹 Clear',
 

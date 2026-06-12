@@ -1,25 +1,10 @@
 const { EmbedBuilder } = require('discord.js');
-const { pool } = require('../database/db');
+const { LOG_TYPES } = require('./logTypes');
+const { sendToLogChannel } = require('./logChannelService');
 
 async function envoyerLog(client, serveurId, options) {
 
     try {
-
-        const result = await pool.query(`
-            SELECT salon_logs_id
-            FROM serveurs
-            WHERE serveur_id = $1
-        `, [serveurId]);
-
-        if (result.rows.length === 0) return;
-
-        const salonLogsId = result.rows[0].salon_logs_id;
-
-        if (!salonLogsId) return;
-
-        const salon = await client.channels.fetch(salonLogsId);
-
-        if (!salon) return;
 
         const embed = new EmbedBuilder()
             .setTitle(options.titre || 'Log')
@@ -34,15 +19,36 @@ async function envoyerLog(client, serveurId, options) {
             });
         }
 
-        await salon.send({
-            embeds: [embed]
-        });
+        await sendToLogChannel(
+            client,
+            serveurId,
+            options.type || options.logType || LOG_TYPES.SERVEUR,
+            {
+                embeds: [embed]
+            }
+        );
 
     } catch (error) {
         console.error('❌ Erreur logger :', error);
     }
 }
 
+async function envoyerLogMessage(client, serveurId, logType, payload) {
+    try {
+        return await sendToLogChannel(
+            client,
+            serveurId,
+            logType,
+            payload
+        );
+
+    } catch (error) {
+        console.error('❌ Erreur logger :', error);
+        return null;
+    }
+}
+
 module.exports = {
     envoyerLog,
+    envoyerLogMessage
 };

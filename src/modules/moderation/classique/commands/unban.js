@@ -140,6 +140,7 @@ ${raison}`
             interaction.guild.id,
 
             {
+                type: 'punisher',
 
                 titre: '🔓 Débannissement',
 

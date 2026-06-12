@@ -16,6 +16,7 @@ services:
 
     volumes:
       - .:/app
+      - /etc/machine-id:/host/etc/machine-id:ro
 
     expose:
       - "3000"

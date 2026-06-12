@@ -54,6 +54,7 @@ module.exports = {
             }
 
             await envoyerLog(member.client, member.guild.id, {
+                type: 'serveur',
 
                 titre: '🤖 Bot ajouté',
 
@@ -105,6 +106,7 @@ ${moderateur || 'Inconnu'}`,
             }
 
             await envoyerLog(emoji.client, emoji.guild.id, {
+                type: 'serveur',
 
                 titre: '😀 Emoji créé',
 
@@ -154,6 +156,7 @@ ${moderateur || 'Inconnu'}`,
             }
 
             await envoyerLog(emoji.client, emoji.guild.id, {
+                type: 'serveur',
 
                 titre: '🗑️ Emoji supprimé',
 
@@ -202,6 +205,7 @@ ${moderateur || 'Inconnu'}`,
             }
 
             await envoyerLog(newEmoji.client, newEmoji.guild.id, {
+                type: 'serveur',
 
                 titre: '✏️ Emoji modifié',
 
@@ -228,6 +232,7 @@ ${moderateur || 'Inconnu'}`,
         async execute(sticker) {
 
             await envoyerLog(sticker.client, sticker.guild.id, {
+                type: 'serveur',
 
                 titre: '🎟️ Sticker créé',
 
@@ -248,6 +253,7 @@ ${sticker.name}`,
         async execute(sticker) {
 
             await envoyerLog(sticker.client, sticker.guild.id, {
+                type: 'serveur',
 
                 titre: '🗑️ Sticker supprimé',
 
@@ -270,6 +276,7 @@ ${sticker.name}`,
             if (oldSticker.name === newSticker.name) return;
 
             await envoyerLog(newSticker.client, newSticker.guild.id, {
+                type: 'serveur',
 
                 titre: '✏️ Sticker modifié',
 

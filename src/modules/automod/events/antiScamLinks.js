@@ -7,6 +7,9 @@ const {
 const { pool } =
     require('../../../database/db');
 
+const { envoyerLogMessage } =
+    require('../../../core/logger');
+
 const scamDomains = [
 
     'dlscord',
@@ -141,14 +144,11 @@ contacte le staff du serveur.`
             }
 
             // LOG
-            const logsChannel =
-                message.guild.channels.cache.get(
-                    config.logs_channel_id
-                );
-
-            if (logsChannel) {
-
-                await logsChannel.send({
+            await envoyerLogMessage(
+                message.client,
+                message.guild.id,
+                'alerte',
+                {
 
                     content:
 `🚨 Lien frauduleux détecté
@@ -161,8 +161,8 @@ ${message.content}
 
 👢 Action :
 Kick automatique`
-                });
-            }
+                }
+            );
         }
     }
 };
