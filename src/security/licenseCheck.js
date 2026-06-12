@@ -1,12 +1,21 @@
 require('dotenv').config();
 
-const fs = require('fs/promises');
+const fs = require('fs');
+const fsPromises = require('fs/promises');
 const os = require('os');
 const path = require('path');
 
 const MAX_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 15 * 1000;
+
+const MACHINE_ID_PATHS = [
+    '/host/etc/machine-id',
+    '/etc/machine-id',
+    '/var/lib/dbus/machine-id'
+];
+
+let lastMachineIdSource = null;
 
 const cachePath =
     path.join(
@@ -88,12 +97,12 @@ function readLicenseEnv() {
     };
 }
 
-async function getMachineId() {
-    if (process.platform === 'linux') {
+function getMachineIdDetails() {
+    for (const filePath of MACHINE_ID_PATHS) {
         try {
             const machineId =
-                await fs.readFile(
-                    '/etc/machine-id',
+                fs.readFileSync(
+                    filePath,
                     'utf8'
                 );
 
@@ -101,16 +110,38 @@ async function getMachineId() {
                 machineId.trim();
 
             if (normalized) {
-                return normalized;
+                console.log(
+                    `Machine-id obtenu depuis ${filePath}`
+                );
+
+                return {
+                    source: filePath,
+                    value: normalized
+                };
             }
         } catch (error) {
-            console.warn(
-                'Machine-id Linux indisponible, utilisation du hostname.'
-            );
+            // Fichier absent ou illisible: on tente la source suivante.
         }
     }
 
-    return os.hostname();
+    console.warn(
+        'Machine-id indisponible, utilisation du hostname.'
+    );
+
+    return {
+        source: 'hostname',
+        value: os.hostname()
+    };
+}
+
+async function getMachineId() {
+    const machineId =
+        getMachineIdDetails();
+
+    lastMachineIdSource =
+        machineId.source;
+
+    return machineId.value;
 }
 
 async function writeLicenseCache({
@@ -118,14 +149,14 @@ async function writeLicenseCache({
     licenseKey,
     machineId
 }) {
-    await fs.mkdir(
+    await fsPromises.mkdir(
         path.dirname(cachePath),
         {
             recursive: true
         }
     );
 
-    await fs.writeFile(
+    await fsPromises.writeFile(
         cachePath,
         JSON.stringify(
             {
@@ -142,7 +173,7 @@ async function writeLicenseCache({
 
 async function readLicenseCache() {
     const content =
-        await fs.readFile(
+        await fsPromises.readFile(
             cachePath,
             'utf8'
         );
@@ -372,10 +403,19 @@ async function checkLicense() {
 if (require.main === module) {
     checkLicense()
         .then(() => {
+            console.log(
+                `Source machine-id utilisee : ${lastMachineIdSource || 'inconnue'}`
+            );
             console.log('Licence valide');
             process.exitCode = 0;
         })
         .catch(error => {
+            if (lastMachineIdSource) {
+                console.log(
+                    `Source machine-id utilisee : ${lastMachineIdSource}`
+                );
+            }
+
             console.error(
                 error.message || 'Erreur licence inconnue.'
             );
@@ -385,5 +425,6 @@ if (require.main === module) {
 
 module.exports = {
     checkLicense,
+    getMachineIdDetails,
     LicenseCheckError
 };
