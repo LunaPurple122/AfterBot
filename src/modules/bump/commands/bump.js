@@ -247,8 +247,7 @@ module.exports = {
 
             return interaction.reply({
                 content:
-                    '✅ Les rappels bump 2h et 4h sont lancés.',
-                ephemeral: true
+                    '✅ Les rappels bump 2h et 4h sont lancés.'
             });
         }
 
