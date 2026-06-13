@@ -22,6 +22,9 @@ async function startBot() {
     const {
         startBumpReminders
     } = require('./modules/bump/services/bumpService');
+    const {
+        startBroadcastProcessor
+    } = require('./core/broadcastService');
 
     const fs = require('fs');
     const path = require('path');
@@ -284,6 +287,8 @@ async function startBot() {
         startStatsScheduler(readyClient);
 
         await startBumpReminders(readyClient);
+
+        await startBroadcastProcessor(readyClient);
     });
 
     client.on(Events.InteractionCreate, async interaction => {

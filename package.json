@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "broadcast": "node scripts/broadcast.js",
     "deploy": "node src/deploy-commands.js",
     "check": "node scripts/check-js.js",
     "license:test": "node src/security/licenseCheck.js"

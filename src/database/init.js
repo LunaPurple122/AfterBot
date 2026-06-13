@@ -135,6 +135,28 @@ async function initDatabase() {
         '✅ Table serveurs prête'
     );
 
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS broadcast_jobs (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(256) NOT NULL,
+            message TEXT NOT NULL,
+            send_to_logs BOOLEAN DEFAULT true,
+            send_to_owners BOOLEAN DEFAULT false,
+            status VARCHAR(32) DEFAULT 'pending',
+            stats JSONB,
+            error TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            started_at TIMESTAMP,
+            sent_at TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
+    await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_broadcast_jobs_status
+        ON broadcast_jobs (status, created_at);
+    `);
+
     // MODULES
     const modulesPath =
         path.join(
