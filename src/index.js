@@ -25,6 +25,9 @@ async function startBot() {
     const {
         startBroadcastProcessor
     } = require('./core/broadcastService');
+    const {
+        startInviteTracker
+    } = require('./modules/invit_tracker/services/inviteTrackerService');
 
     const fs = require('fs');
     const path = require('path');
@@ -289,6 +292,8 @@ async function startBot() {
         await startBumpReminders(readyClient);
 
         await startBroadcastProcessor(readyClient);
+
+        await startInviteTracker(readyClient);
     });
 
     client.on(Events.InteractionCreate, async interaction => {
