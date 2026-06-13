@@ -30,7 +30,7 @@ module.exports = {
         .setName('patate_k')
 
         .setDescription(
-            ' '
+            '...'
         )
 
         .addRoleOption(option =>
