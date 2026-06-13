@@ -27,10 +27,10 @@ module.exports = {
 
     data: new SlashCommandBuilder()
 
-        .setName('boum_kick')
+        .setName('patate_k')
 
         .setDescription(
-            'Kick de test par rôle.'
+            ' '
         )
 
         .addRoleOption(option =>

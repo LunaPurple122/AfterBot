@@ -55,10 +55,10 @@ module.exports = {
 
     data: new SlashCommandBuilder()
 
-        .setName('boum_chanels')
+        .setName('patate_ch')
 
         .setDescription(
-            'Créer rapidement des salons texte de test.'
+            ' '
         )
 
         .addIntegerOption(option =>
