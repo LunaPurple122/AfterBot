@@ -80,6 +80,34 @@ async function claimPendingJob() {
     return result.rows[0] || null;
 }
 
+async function createBroadcastJob({
+    title,
+    message,
+    sendToLogs,
+    sendToOwners
+}) {
+    await ensureBroadcastTable();
+
+    const result = await pool.query(`
+        INSERT INTO broadcast_jobs (
+            title,
+            message,
+            send_to_logs,
+            send_to_owners,
+            status
+        )
+        VALUES ($1, $2, $3, $4, 'pending')
+        RETURNING id;
+    `, [
+        title,
+        message,
+        sendToLogs,
+        sendToOwners
+    ]);
+
+    return result.rows[0];
+}
+
 async function getConfiguredGuildIds() {
     const result = await pool.query(`
         SELECT serveur_id
@@ -399,6 +427,7 @@ async function startBroadcastProcessor(client) {
 }
 
 module.exports = {
+    createBroadcastJob,
     ensureBroadcastTable,
     processBroadcastJob,
     runBroadcastProcessor,

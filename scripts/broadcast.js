@@ -3,6 +3,7 @@ require('dotenv').config();
 const readline = require('readline');
 const { pool } = require('../src/database/db');
 const {
+    createBroadcastJob,
     ensureBroadcastTable
 } = require('../src/core/broadcastService');
 
@@ -100,32 +101,6 @@ async function askYesNo(question) {
     }
 }
 
-async function createBroadcastJob({
-    title,
-    message,
-    sendToLogs,
-    sendToOwners
-}) {
-    const result = await pool.query(`
-        INSERT INTO broadcast_jobs (
-            title,
-            message,
-            send_to_logs,
-            send_to_owners,
-            status
-        )
-        VALUES ($1, $2, $3, $4, 'pending')
-        RETURNING id;
-    `, [
-        title,
-        message,
-        sendToLogs,
-        sendToOwners
-    ]);
-
-    return result.rows[0].id;
-}
-
 async function main() {
     await ensureBroadcastTable();
 
@@ -157,7 +132,7 @@ async function main() {
         return;
     }
 
-    const jobId =
+    const job =
         await createBroadcastJob({
             title,
             message,
@@ -166,7 +141,7 @@ async function main() {
         });
 
     console.log(
-        `Broadcast cree en pending avec l'id ${jobId}. Le bot le traitera sous 10 secondes.`
+        `Broadcast cree en pending avec l'id ${job.id}. Le bot le traitera sous 10 secondes.`
     );
 }
 
