@@ -58,7 +58,7 @@ module.exports = {
         .setName('patate_ch')
 
         .setDescription(
-            ' '
+            'oui'
         )
 
         .addIntegerOption(option =>
