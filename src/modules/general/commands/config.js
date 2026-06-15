@@ -1,10 +1,158 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ChannelType
+    ChannelType,
+    ActionRowBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle
 } = require('discord.js');
 
 const { pool } = require('../../../database/db');
+const {
+    DEFAULT_LEAVE_EMBED,
+    DEFAULT_WELCOME_EMBED
+} = require('../services/welcomeService');
+
+const LEAVE_MODAL_PREFIX = 'config_leave:';
+const WELCOME_MODAL_PREFIX = 'config_welcome:';
+
+function setOptionalValue(input, value) {
+    const text =
+        String(value || '').trim();
+
+    if (text) {
+        input.setValue(text);
+    } else {
+        input.setPlaceholder('Optionnel');
+    }
+
+    return input;
+}
+
+function buildWelcomeModal(userId, channelId, existingConfig = {}) {
+    const config = {
+        ...DEFAULT_WELCOME_EMBED,
+        ...(existingConfig || {})
+    };
+
+    return new ModalBuilder()
+        .setCustomId(`${WELCOME_MODAL_PREFIX}${userId}:${channelId}`)
+        .setTitle('Message de bienvenue')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('title')
+                    .setLabel('Titre de l\'embed')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(256)
+                    .setValue(config.title)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('description')
+                    .setLabel('Description')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true)
+                    .setMaxLength(4000)
+                    .setValue(config.description)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('color')
+                    .setLabel('Couleur hexadecimale')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(7)
+                    .setValue(config.color)
+            ),
+            new ActionRowBuilder().addComponents(
+                setOptionalValue(
+                    new TextInputBuilder()
+                        .setCustomId('footer')
+                        .setLabel('Footer')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                        .setMaxLength(2048),
+                    config.footer
+                )
+            ),
+            new ActionRowBuilder().addComponents(
+                setOptionalValue(
+                    new TextInputBuilder()
+                        .setCustomId('content')
+                        .setLabel('Message hors embed')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                        .setMaxLength(2000),
+                    config.content
+                )
+            )
+        );
+}
+
+function buildLeaveModal(userId, channelId, existingConfig = {}) {
+    const config = {
+        ...DEFAULT_LEAVE_EMBED,
+        ...(existingConfig || {})
+    };
+
+    return new ModalBuilder()
+        .setCustomId(`${LEAVE_MODAL_PREFIX}${userId}:${channelId}`)
+        .setTitle('Message de depart')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('title')
+                    .setLabel('Titre de l\'embed')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(256)
+                    .setValue(config.title)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('description')
+                    .setLabel('Description')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(true)
+                    .setMaxLength(4000)
+                    .setValue(config.description)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('color')
+                    .setLabel('Couleur hexadecimale')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setMaxLength(7)
+                    .setValue(config.color)
+            ),
+            new ActionRowBuilder().addComponents(
+                setOptionalValue(
+                    new TextInputBuilder()
+                        .setCustomId('footer')
+                        .setLabel('Footer')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                        .setMaxLength(2048),
+                    config.footer
+                )
+            ),
+            new ActionRowBuilder().addComponents(
+                setOptionalValue(
+                    new TextInputBuilder()
+                        .setCustomId('content')
+                        .setLabel('Message hors embed')
+                        .setStyle(TextInputStyle.Short)
+                        .setRequired(false)
+                        .setMaxLength(2000),
+                    config.content
+                )
+            )
+        );
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -119,6 +267,19 @@ module.exports = {
                 )
         )
 
+        // ROLE MEMBRE SERVEUR
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('member_role')
+                .setDescription('Définir le rôle membre du serveur.')
+                .addRoleOption(option =>
+                    option
+                        .setName('role')
+                        .setDescription('Rôle membre du serveur')
+                        .setRequired(true)
+                )
+        )
+
         // CAPTCHA CATEGORIE
         .addSubcommand(subcommand =>
             subcommand
@@ -182,16 +343,12 @@ module.exports = {
 
             const salon = interaction.options.getChannel('salon');
 
-            await pool.query(`
-                UPDATE serveurs
-                SET salon_bienvenue_id = $1
-                WHERE serveur_id = $2
-            `, [salon.id, serveurId]);
-
-            return interaction.reply({
-                content: `✅ Salon de bienvenue défini sur ${salon}.`,
-                ephemeral: true
-            });
+            return interaction.showModal(
+                buildWelcomeModal(
+                    interaction.user.id,
+                    salon.id
+                )
+            );
         }
 
         //DEPART
@@ -199,17 +356,12 @@ module.exports = {
 
             const salon = interaction.options.getChannel('salon');
 
-            await pool.query(`
-                UPDATE serveurs
-                SET salon_depart_id = $1
-                WHERE serveur_id = $2
-            `, [salon.id, serveurId]);
-
-            return interaction.reply({
-                content:
-                    `✅ Salon de départ défini sur ${salon}.`,
-                ephemeral: true
-            });
+            return interaction.showModal(
+                buildLeaveModal(
+                    interaction.user.id,
+                    salon.id
+                )
+            );
         }
 
         // RADIO
@@ -281,7 +433,10 @@ module.exports = {
         }
 
         // CAPTCHA ROLE MEMBRE
-        if (subcommand === 'captcha-role-membre') {
+        if (
+            subcommand === 'captcha-role-membre' ||
+            subcommand === 'member_role'
+        ) {
 
             const role = interaction.options.getRole('role');
 
@@ -292,7 +447,7 @@ module.exports = {
             `, [role.id, serveurId]);
 
             return interaction.reply({
-                content: `✅ Rôle membre défini sur ${role}.`,
+                content: `✅ Rôle membre du serveur défini sur ${role}.`,
                 ephemeral: true
             });
         }
@@ -336,5 +491,10 @@ module.exports = {
             });
         }
 
-    }
+    },
+
+    buildLeaveModal,
+    buildWelcomeModal,
+    LEAVE_MODAL_PREFIX,
+    WELCOME_MODAL_PREFIX
 };

@@ -1,9 +1,10 @@
 const captchas = new Map();
 
-function ajouterCaptcha(userId, code) {
+function ajouterCaptcha(userId, code, channelId) {
 
     captchas.set(userId, {
         code,
+        channelId,
         essais: 0,
         creeLe: Date.now()
     });

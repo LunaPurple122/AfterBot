@@ -31,6 +31,12 @@ const DANGEROUS_ALLOWED_PERMISSIONS =
         'ModerateMembers'
     ]);
 
+const DISCORD_ID_REGEX =
+    /^\d{17,20}$/;
+
+const ROLE_MENTION_REGEX =
+    /^<@&(\d{17,20})>$/;
+
 function truncate(text, maxLength = 1900) {
     if (text.length <= maxLength) return text;
 
@@ -300,14 +306,69 @@ function validateProject(project) {
     };
 }
 
-function findRole(guild, roleName) {
-    if (roleName === '@everyone') {
-        return guild.roles.everyone;
+function resolveRole(guild, roleReference) {
+    const value =
+        String(roleReference || '').trim();
+
+    if (value === '@everyone') {
+        return {
+            role:
+                guild.roles.everyone,
+            method:
+                '@everyone',
+            reference:
+                value
+        };
     }
 
-    return guild.roles.cache.find(role =>
-        role.name === roleName
-    ) || null;
+    if (DISCORD_ID_REGEX.test(value)) {
+        return {
+            role:
+                guild.roles.cache.get(value) || null,
+            method:
+                'recherche par ID',
+            reference:
+                value
+        };
+    }
+
+    const mentionMatch =
+        value.match(ROLE_MENTION_REGEX);
+
+    if (mentionMatch) {
+        return {
+            role:
+                guild.roles.cache.get(mentionMatch[1]) || null,
+            method:
+                'recherche par mention',
+            reference:
+                value
+        };
+    }
+
+    return {
+        role:
+            guild.roles.cache.find(role =>
+                role.name === value
+            ) || null,
+        method:
+            'recherche par nom',
+        reference:
+            value
+    };
+}
+
+function formatMissingRoleError(resolution) {
+    return [
+        'role introuvable :',
+        resolution.reference,
+        '',
+        `Methode utilisee : ${resolution.method}`
+    ].join('\n');
+}
+
+function findRole(guild, roleReference) {
+    return resolveRole(guild, roleReference).role;
 }
 
 function findCategory(guild, name) {
@@ -403,11 +464,16 @@ function buildPermissionOverwrites(guild, permissions, errors) {
     if (!permissions) return overwrites;
 
     for (const [roleName, overwrite] of Object.entries(permissions)) {
+        const resolution =
+            resolveRole(guild, roleName);
+
         const role =
-            findRole(guild, roleName);
+            resolution.role;
 
         if (!role) {
-            errors.push(`role introuvable pour permissions : ${roleName}`);
+            errors.push(
+                formatMissingRoleError(resolution)
+            );
             continue;
         }
 
@@ -432,11 +498,16 @@ async function applyPermissionSync(target, guild, permissions, errors) {
     if (!permissions) return;
 
     for (const [roleName, overwrite] of Object.entries(permissions)) {
+        const resolution =
+            resolveRole(guild, roleName);
+
         const role =
-            findRole(guild, roleName);
+            resolution.role;
 
         if (!role) {
-            errors.push(`role introuvable pour permissions : ${roleName}`);
+            errors.push(
+                formatMissingRoleError(resolution)
+            );
             continue;
         }
 
@@ -455,8 +526,22 @@ async function applyPermissionSync(target, guild, permissions, errors) {
 }
 
 function projectDeclaresRole(project, roleName) {
+    const resolution =
+        {
+            reference:
+                String(roleName || '').trim()
+        };
+
+    if (
+        DISCORD_ID_REGEX.test(resolution.reference) ||
+        ROLE_MENTION_REGEX.test(resolution.reference) ||
+        resolution.reference === '@everyone'
+    ) {
+        return false;
+    }
+
     return asArray(project.roles).some(role =>
-        role?.name === roleName
+        role?.name === resolution.reference
     );
 }
 
@@ -464,11 +549,16 @@ function collectPermissionRoleErrors(guild, project, permissions, errors) {
     if (!permissions) return;
 
     for (const roleName of Object.keys(permissions)) {
+        const resolution =
+            resolveRole(guild, roleName);
+
         if (
-            !findRole(guild, roleName) &&
+            !resolution.role &&
             !projectDeclaresRole(project, roleName)
         ) {
-            errors.push(`! role introuvable : ${roleName}`);
+            errors.push(
+                `! ${formatMissingRoleError(resolution)}`
+            );
         }
     }
 }

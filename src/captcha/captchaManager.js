@@ -18,6 +18,28 @@ const {
 const { pool } =
     require('../database/db');
 
+function supprimerSalonCaptcha(message, channelId, delaiMs = 3000) {
+
+    setTimeout(async () => {
+
+        try {
+
+            const salon =
+                channelId
+                    ? message.guild.channels.cache.get(channelId)
+                    : message.channel;
+
+            if (!salon) return;
+
+            await salon.delete();
+
+        } catch (error) {
+            console.error('Impossible de supprimer le salon captcha :', error);
+        }
+
+    }, delaiMs);
+}
+
 async function creerCaptcha(member) {
 
     const result = await pool.query(
@@ -114,7 +136,8 @@ async function creerCaptcha(member) {
 
     ajouterCaptcha(
         member.id,
-        captcha.code
+        captcha.code,
+        salon.id
     );
 
     const attachment =
@@ -149,16 +172,28 @@ async function verifierCaptcha(message) {
 
     if (!captcha) return false;
 
+    if (
+        !captcha.channelId ||
+        message.channel.id !== captcha.channelId
+    ) {
+        return false;
+    }
+
     // EXPIRATION
     if (
         Date.now() - captcha.creeLe >
-        1000 * 60 * 5
+        1000 * 60 * 60 * 24
     ) {
 
         supprimerCaptcha(message.author.id);
 
         await message.channel.send(
             '❌ Captcha expiré.'
+        );
+
+        supprimerSalonCaptcha(
+            message,
+            captcha.channelId
         );
 
         return false;
@@ -199,6 +234,11 @@ async function verifierCaptcha(message) {
 
             supprimerCaptcha(
                 message.author.id
+            );
+
+            supprimerSalonCaptcha(
+                message,
+                captcha.channelId
             );
 
             return true;
@@ -295,17 +335,10 @@ ${5 - updatedCaptcha.essais}`
         '✅ Vérification réussie.'
     );
 
-    setTimeout(async () => {
-
-        try {
-
-            await message.channel.delete();
-
-        } catch (error) {
-            console.error('Impossible de supprimer le salon captcha :', error);
-        }
-
-    }, 3000);
+    supprimerSalonCaptcha(
+        message,
+        captcha.channelId
+    );
 
     return true;
 }

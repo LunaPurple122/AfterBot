@@ -72,6 +72,10 @@ async function initDatabase() {
 
             texte_reglement TEXT,
 
+            bienvenue_embed JSONB,
+
+            depart_embed JSONB,
+
             cree_le TIMESTAMP
                 DEFAULT CURRENT_TIMESTAMP,
 
@@ -90,7 +94,9 @@ async function initDatabase() {
         ADD COLUMN IF NOT EXISTS role_membre_id VARCHAR(32),
         ADD COLUMN IF NOT EXISTS categorie_captcha_id VARCHAR(32),
         ADD COLUMN IF NOT EXISTS role_reglement_id VARCHAR(32),
-        ADD COLUMN IF NOT EXISTS texte_reglement TEXT;
+        ADD COLUMN IF NOT EXISTS texte_reglement TEXT,
+        ADD COLUMN IF NOT EXISTS bienvenue_embed JSONB,
+        ADD COLUMN IF NOT EXISTS depart_embed JSONB;
     `);
 
     await pool.query(`

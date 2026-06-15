@@ -1,36 +1,29 @@
 const {
-    Events,
-    EmbedBuilder
+    Events
 } = require('discord.js');
 
-const { pool } =
-    require('../database/db');
+const {
+    buildLeavePayload,
+    buildWelcomePayload,
+    getLeaveConfig,
+    getWelcomeConfig
+} = require('../modules/general/services/welcomeService');
+
+function attendre(ms) {
+    return new Promise(resolve =>
+        setTimeout(resolve, ms)
+    );
+}
 
 module.exports = {
-
-    // BIENVENUE
     welcomeEvent: {
-
         name: Events.GuildMemberAdd,
 
         async execute(member) {
-
-            const result =
-                await pool.query(
-                    `SELECT salon_bienvenue_id
-                    FROM serveurs
-                    WHERE serveur_id = $1`,
-                    [member.guild.id]
-                );
-
             const config =
-                result.rows[0];
+                await getWelcomeConfig(member.guild.id);
 
-            if (!config) return;
-
-            if (
-                !config.salon_bienvenue_id
-            ) return;
+            if (!config?.salon_bienvenue_id) return;
 
             const salon =
                 member.guild.channels.cache.get(
@@ -39,67 +32,26 @@ module.exports = {
 
             if (!salon) return;
 
-            const embed =
-                new EmbedBuilder()
+            await attendre(1500);
 
-                    .setColor(0x57F287)
+            const payload =
+                await buildWelcomePayload(
+                    member,
+                    config.bienvenue_embed
+                );
 
-                    .setTitle(
-                        '🌃 Nouveau membre'
-                    )
-
-                    .setDescription(
-`Bienvenue ${member}
-
-Tu es désormais connecté à ${member.guild.name} 😏`
-                    )
-
-                    .setThumbnail(
-                        member.user.displayAvatarURL({
-                            dynamic: true
-                        })
-                    )
-
-                    .setFooter({
-                        text:
-                            `Membre #${member.guild.memberCount}`
-                    })
-
-                    .setTimestamp();
-
-            await salon.send({
-                
-                content:
-                    `|| ${member} ||`,
-
-                embeds: [embed]
-            });
+            await salon.send(payload);
         }
     },
 
-    // DEPART
     leaveEvent: {
-
         name: Events.GuildMemberRemove,
 
         async execute(member) {
-
-            const result =
-                await pool.query(
-                    `SELECT salon_depart_id
-                    FROM serveurs
-                    WHERE serveur_id = $1`,
-                    [member.guild.id]
-                );
-
             const config =
-                result.rows[0];
+                await getLeaveConfig(member.guild.id);
 
-            if (!config) return;
-
-            if (
-                !config.salon_depart_id
-            ) return;
+            if (!config?.salon_depart_id) return;
 
             const salon =
                 member.guild.channels.cache.get(
@@ -108,31 +60,13 @@ Tu es désormais connecté à ${member.guild.name} 😏`
 
             if (!salon) return;
 
-            const embed =
-                new EmbedBuilder()
+            const payload =
+                await buildLeavePayload(
+                    member,
+                    config.depart_embed
+                );
 
-                    .setColor(0xED4245)
-
-                    .setTitle(
-                        '🌙 Déconnexion'
-                    )
-
-                    .setDescription(
-`${member.user.tag}
-a quitté le serveur.`
-                    )
-
-                    .setThumbnail(
-                        member.user.displayAvatarURL({
-                            dynamic: true
-                        })
-                    )
-
-                    .setTimestamp();
-
-            await salon.send({
-                embeds: [embed]
-            });
+            await salon.send(payload);
         }
     }
 };
