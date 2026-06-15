@@ -37,6 +37,21 @@ const DISCORD_ID_REGEX =
 const ROLE_MENTION_REGEX =
     /^<@&(\d{17,20})>$/;
 
+const PERMISSION_ALIASES = {
+    Video: 'Stream'
+};
+
+function normalizePermissionName(permissionName) {
+    return PERMISSION_ALIASES[permissionName] || permissionName;
+}
+
+function getPermissionFlag(permissionName) {
+    const normalizedName =
+        normalizePermissionName(permissionName);
+
+    return PermissionFlagsBits[normalizedName];
+}
+
 function truncate(text, maxLength = 1900) {
     if (text.length <= maxLength) return text;
 
@@ -109,15 +124,18 @@ function validatePermissionList(list, path, errors) {
     const converted = [];
 
     for (const permissionName of permissions) {
+        const normalizedName =
+            normalizePermissionName(permissionName);
+
         if (
             typeof permissionName !== 'string' ||
-            !PermissionFlagsBits[permissionName]
+            !getPermissionFlag(permissionName)
         ) {
             errors.push(`Permission inconnue : ${path}.${permissionName}`);
             continue;
         }
 
-        converted.push(permissionName);
+        converted.push(normalizedName);
     }
 
     return converted;
@@ -482,11 +500,11 @@ function buildPermissionOverwrites(guild, permissions, errors) {
                 role.id,
             allow:
                 asArray(overwrite.allow).map(name =>
-                    PermissionFlagsBits[name]
+                    getPermissionFlag(name)
                 ),
             deny:
                 asArray(overwrite.deny).map(name =>
-                    PermissionFlagsBits[name]
+                    getPermissionFlag(name)
                 )
         });
     }
@@ -514,11 +532,11 @@ async function applyPermissionSync(target, guild, permissions, errors) {
         const values = {};
 
         for (const permissionName of asArray(overwrite.allow)) {
-            values[permissionName] = true;
+            values[normalizePermissionName(permissionName)] = true;
         }
 
         for (const permissionName of asArray(overwrite.deny)) {
-            values[permissionName] = false;
+            values[normalizePermissionName(permissionName)] = false;
         }
 
         await target.permissionOverwrites.edit(role, values);

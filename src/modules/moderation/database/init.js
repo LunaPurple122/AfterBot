@@ -35,6 +35,16 @@ async function initModerationTables() {
         ON warns (serveur_id, cree_le DESC);
     `);
 
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS moderation_ban_dm_messages (
+            serveur_id VARCHAR(32) PRIMARY KEY,
+            title VARCHAR(256) NOT NULL,
+            description TEXT NOT NULL,
+            color INTEGER DEFAULT 15548997,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+
     console.log(
         '✅ Table warns prête'
     );
