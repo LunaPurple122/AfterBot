@@ -97,7 +97,7 @@ async function handleExport(interaction) {
 
     return safeReply(interaction, {
         content:
-            'Export TXT généré depuis la configuration autorole.',
+            'Export TXT généré depuis la hiérarchie des rôles du serveur.',
         files:
             [
                 attachment
@@ -129,7 +129,7 @@ async function handleRaw(interaction) {
 
     return safeReply(interaction, {
         content:
-            'Export brut généré depuis la configuration autorole.',
+            'Export brut généré depuis la hiérarchie des rôles du serveur.',
         files:
             [
                 attachment
@@ -141,20 +141,20 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('roleslist')
         .setDescription(
-            'Lister ou exporter les rôles configurés dans les autoroles.'
+            'Lister ou exporter les rôles du serveur par catégories autorole.'
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('list')
                 .setDescription(
-                    'Afficher les rôles configurés par catégorie.'
+                    'Afficher les rôles du serveur par catégorie.'
                 )
         )
         .addSubcommand(subcommand =>
             subcommand
                 .setName('export')
                 .setDescription(
-                    'Exporter les rôles configurés dans un fichier TXT.'
+                    'Exporter les rôles du serveur dans un fichier TXT.'
                 )
         )
         .addSubcommand(subcommand =>

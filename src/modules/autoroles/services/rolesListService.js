@@ -5,78 +5,16 @@ const { pool } = require('../../../database/db');
 const ALTIA_PURPLE =
     0xB99CFF;
 
-const DEFAULT_CATEGORY_NAME =
-    'Autoroles';
+const UNCATEGORIZED_NAME =
+    'Sans catégorie';
 
-const CATEGORY_NAME_COLUMNS = [
-    'categorie',
-    'category',
-    'categorie_nom',
-    'nom_categorie',
-    'category_name',
-    'category_label',
-    'categorie_label',
-    'groupe'
-];
-
-const CATEGORY_ORDER_COLUMNS = [
-    'categorie_ordre',
-    'ordre_categorie',
-    'category_order',
-    'category_position',
-    'categorie_position'
-];
-
-const ROLE_ORDER_COLUMNS = [
-    'ordre',
-    'position',
-    'role_ordre',
-    'ordre_role',
-    'role_position'
-];
-
-function firstPresentValue(row, columns) {
-    for (const column of columns) {
-        if (
-            Object.prototype.hasOwnProperty.call(row, column) &&
-            row[column] !== null &&
-            row[column] !== undefined &&
-            String(row[column]).trim() !== ''
-        ) {
-            return row[column];
-        }
+function compareRolesTopToBottom(left, right) {
+    if (left.position !== right.position) {
+        return right.position - left.position;
     }
 
-    return null;
-}
-
-function toNumberOrNull(value) {
-    if (value === null || value === undefined || value === '') {
-        return null;
-    }
-
-    const number =
-        Number(value);
-
-    return Number.isFinite(number)
-        ? number
-        : null;
-}
-
-function compareNullableNumber(left, right) {
-    if (left !== null && right !== null) {
-        return left - right;
-    }
-
-    if (left !== null) return -1;
-    if (right !== null) return 1;
-
-    return 0;
-}
-
-function compareText(left, right) {
-    return String(left || '').localeCompare(
-        String(right || ''),
+    return left.name.localeCompare(
+        right.name,
         'fr',
         {
             sensitivity: 'base'
@@ -84,152 +22,152 @@ function compareText(left, right) {
     );
 }
 
-function getRoleSortPosition(role) {
-    if (!role) return Number.NEGATIVE_INFINITY;
-
-    return role.position ?? 0;
-}
-
-function makeRoleEntry(row, guild) {
-    const role =
-        guild.roles.cache.get(row.role_id);
-
+function makeRoleEntry(role) {
     return {
         id:
-            row.role_id,
+            role.id,
         name:
-            role?.name || 'Rôle supprimé/introuvable',
+            role.name,
         mention:
-            role ? `<@&${row.role_id}>` : null,
-        exists:
-            Boolean(role),
-        discordPosition:
-            getRoleSortPosition(role),
-        order:
-            toNumberOrNull(
-                firstPresentValue(
-                    row,
-                    ROLE_ORDER_COLUMNS
-                )
-            )
+            `<@&${role.id}>`,
+        position:
+            role.position ?? 0
     };
 }
 
-function categoryKey(name, order) {
-    return `${order ?? 'none'}:${name}`;
+function makeCategory(name, id = null, position = null) {
+    return {
+        id,
+        name,
+        position,
+        roles: []
+    };
 }
 
-function buildCategories(rows, guild) {
-    const categoriesByKey =
-        new Map();
-
-    for (const row of rows) {
-        const name =
-            String(
-                firstPresentValue(
-                    row,
-                    CATEGORY_NAME_COLUMNS
-                ) || DEFAULT_CATEGORY_NAME
-            ).trim();
-
-        const order =
-            toNumberOrNull(
-                firstPresentValue(
-                    row,
-                    CATEGORY_ORDER_COLUMNS
-                )
-            );
-
-        const key =
-            categoryKey(name, order);
-
-        if (!categoriesByKey.has(key)) {
-            categoriesByKey.set(key, {
-                name,
-                order,
-                roles: []
-            });
-        }
-
-        categoriesByKey
-            .get(key)
-            .roles
-            .push(
-                makeRoleEntry(row, guild)
-            );
-    }
-
-    const categories =
-        [...categoriesByKey.values()];
-
-    for (const category of categories) {
-        category.roles.sort((left, right) => {
-            const orderCompare =
-                compareNullableNumber(
-                    left.order,
-                    right.order
-                );
-
-            if (orderCompare !== 0) return orderCompare;
-
-            if (
-                left.discordPosition !== right.discordPosition
-            ) {
-                return right.discordPosition - left.discordPosition;
-            }
-
-            return compareText(
-                left.name,
-                right.name
-            );
-        });
-    }
-
-    categories.sort((left, right) => {
-        const orderCompare =
-            compareNullableNumber(
-                left.order,
-                right.order
-            );
-
-        if (orderCompare !== 0) return orderCompare;
-
-        return compareText(
-            left.name,
-            right.name
-        );
-    });
-
-    return categories;
-}
-
-async function getConfiguredAutoroleCategories(guild) {
-    await guild.roles.fetch();
-
+async function getAutoroleCategoryIds(guildId) {
     const result =
         await pool.query(
             `
-            SELECT *
+            SELECT role_id
             FROM autoroles
             WHERE serveur_id = $1
             ORDER BY id ASC
             `,
             [
-                guild.id
+                guildId
             ]
         );
 
-    return buildCategories(
-        result.rows,
+    return result.rows
+        .map(row => row.role_id)
+        .filter(Boolean);
+}
+
+function getSortedGuildRoles(guild) {
+    return [...guild.roles.cache.values()]
+        .filter(role => role.id !== guild.id)
+        .sort(compareRolesTopToBottom);
+}
+
+function shouldIncludeNormalRole(role, categoryIds) {
+    if (categoryIds.has(role.id)) {
+        return false;
+    }
+
+    if (role.managed) {
+        return false;
+    }
+
+    return true;
+}
+
+function addMissingCategories(categories, categoryIds, guild) {
+    const existingCategoryIds =
+        new Set(
+            categories
+                .map(category => category.id)
+                .filter(Boolean)
+        );
+
+    for (const categoryId of categoryIds) {
+        if (existingCategoryIds.has(categoryId)) {
+            continue;
+        }
+
+        const role =
+            guild.roles.cache.get(categoryId);
+
+        categories.push(
+            makeCategory(
+                role?.name || `Rôle catégorie introuvable (${categoryId})`,
+                categoryId,
+                role?.position ?? null
+            )
+        );
+    }
+}
+
+async function getConfiguredAutoroleCategories(guild) {
+    await guild.roles.fetch();
+
+    const categoryIds =
+        new Set(
+            await getAutoroleCategoryIds(guild.id)
+        );
+
+    if (categoryIds.size === 0) {
+        return [];
+    }
+
+    const categories = [];
+    let currentCategory =
+        makeCategory(UNCATEGORIZED_NAME);
+
+    for (const role of getSortedGuildRoles(guild)) {
+        if (categoryIds.has(role.id)) {
+            if (
+                currentCategory.name !== UNCATEGORIZED_NAME ||
+                currentCategory.roles.length > 0
+            ) {
+                categories.push(currentCategory);
+            }
+
+            currentCategory =
+                makeCategory(
+                    role.name,
+                    role.id,
+                    role.position ?? 0
+                );
+
+            continue;
+        }
+
+        if (!shouldIncludeNormalRole(role, categoryIds)) {
+            continue;
+        }
+
+        currentCategory.roles.push(
+            makeRoleEntry(role)
+        );
+    }
+
+    if (
+        currentCategory.name !== UNCATEGORIZED_NAME ||
+        currentCategory.roles.length > 0
+    ) {
+        categories.push(currentCategory);
+    }
+
+    addMissingCategories(
+        categories,
+        categoryIds,
         guild
     );
+
+    return categories;
 }
 
 function roleDisplayLine(role) {
-    if (!role.exists) {
-        return `⚠️ Rôle supprimé/introuvable — \`${role.id}\``;
-    }
-
     return `${role.mention} — \`${role.id}\``;
 }
 
@@ -268,9 +206,9 @@ function splitLines(lines, maxLength) {
 
 function makeBaseEmbed() {
     return new EmbedBuilder()
-        .setTitle('📋 Liste des rôles configurés')
+        .setTitle('📋 Liste des rôles du serveur')
         .setDescription(
-            'Rôles récupérés depuis la configuration autorole du serveur.'
+            'Rôles classés par séparateurs autorole et position Discord.'
         )
         .setColor(ALTIA_PURPLE)
         .setFooter({
@@ -287,9 +225,9 @@ function buildRolesListEmbeds(categories) {
             makeBaseEmbed()
                 .addFields({
                     name:
-                        'Aucune configuration',
+                        'Aucune catégorie',
                     value:
-                        'Aucune catégorie ou aucun rôle autorole n’est configuré pour ce serveur.'
+                        'Aucun rôle autorole séparateur n’est configuré pour ce serveur.'
                 })
         ];
     }
@@ -298,7 +236,7 @@ function buildRolesListEmbeds(categories) {
         const lines =
             category.roles.length > 0
                 ? category.roles.map(roleDisplayLine)
-                : ['Aucun rôle dans cette catégorie.'];
+                : ['Aucun rôle trouvé dans cette catégorie.'];
 
         const chunks =
             splitLines(lines, 1000);
@@ -325,7 +263,7 @@ function buildRolesListEmbeds(categories) {
 
 function buildExportBuffer(categories, guild) {
     const lines = [
-        'Liste des rôles configurés',
+        'Liste des rôles du serveur classés par catégories',
         `Serveur : ${guild.name}`,
         `ID serveur : ${guild.id}`,
         `Généré le : ${new Date().toISOString()}`,
@@ -333,64 +271,35 @@ function buildExportBuffer(categories, guild) {
         '=================================================='
     ];
 
-    const missingRoles = [];
-
     if (categories.length === 0) {
         lines.push(
             '',
-            'Aucune catégorie ou aucun rôle autorole n’est configuré.'
+            'Aucun rôle autorole séparateur n’est configuré.',
+            '',
+            '=================================================='
         );
     }
 
     for (const category of categories) {
-        const existingRoles =
-            category.roles.filter(role => role.exists);
-
-        const missing =
-            category.roles.filter(role => !role.exists);
-
-        missingRoles.push(...missing);
-
         lines.push(
             '',
             category.name,
             ''
         );
 
-        if (existingRoles.length === 0) {
+        if (category.roles.length === 0) {
             lines.push(
-                '- Aucun rôle existant dans cette catégorie.'
-            );
-        }
-
-        for (const role of existingRoles) {
-            lines.push(
-                `- Nom du rôle : ${role.name}`,
-                `  ID : ${role.id}`,
-                `  Mention : <@&${role.id}>`,
-                '  Existe sur Discord : oui',
+                'Aucun rôle trouvé dans cette catégorie.',
                 ''
             );
         }
 
-        lines.push(
-            '=================================================='
-        );
-    }
-
-    if (missingRoles.length > 0) {
-        lines.push(
-            '',
-            '⚠️ Rôles introuvables',
-            ''
-        );
-
-        for (const role of missingRoles) {
+        for (const role of category.roles) {
             lines.push(
-                '- Nom du rôle : Rôle supprimé/introuvable',
+                `- Nom du rôle : ${role.name}`,
                 `  ID : ${role.id}`,
-                '  Mention : N/A',
-                '  Existe sur Discord : non',
+                `  Mention : <@&${role.id}>`,
+                `  Position Discord : ${role.position}`,
                 ''
             );
         }
@@ -411,7 +320,7 @@ function buildRawBuffer(categories) {
 
     if (categories.length === 0) {
         lines.push(
-            'Aucun rôle autorole configuré.'
+            'Aucun rôle autorole séparateur configuré.'
         );
     }
 
@@ -422,7 +331,7 @@ function buildRawBuffer(categories) {
 
         if (category.roles.length === 0) {
             lines.push(
-                'Aucun rôle = N/A'
+                'Aucun rôle trouvé dans cette catégorie.'
             );
         }
 
