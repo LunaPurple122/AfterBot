@@ -746,6 +746,126 @@ async function fetchMessagesForTranscript(channel) {
     return messages.reverse();
 }
 
+async function removeTriggerRoleFromRequester(guild, request) {
+    const role =
+        guild.roles.cache.get(request.trigger_role_id) ||
+        await guild.roles.fetch(request.trigger_role_id)
+            .catch(() => null);
+
+    const roleResult = {
+        success: false,
+        removed: false,
+        roleName: role?.name || 'Role introuvable',
+        roleId: request.trigger_role_id,
+        reason: null
+    };
+
+    if (!role) {
+        roleResult.reason =
+            'Role declencheur introuvable.';
+
+        console.error(
+            `ROD ${request.id}: role declencheur introuvable (${request.trigger_role_id}).`
+        );
+
+        return roleResult;
+    }
+
+    const member =
+        await guild.members.fetch(request.requester_user_id)
+            .catch(error => {
+                console.error(
+                    `ROD ${request.id}: impossible de recuperer le demandeur ${request.requester_user_id} :`,
+                    error
+                );
+
+                return null;
+            });
+
+    if (!member) {
+        roleResult.reason =
+            'Membre demandeur introuvable.';
+
+        return roleResult;
+    }
+
+    if (!member.roles.cache.has(role.id)) {
+        roleResult.success = true;
+        roleResult.reason =
+            'Le membre ne possedait plus le role declencheur.';
+
+        return roleResult;
+    }
+
+    const botMember =
+        guild.members.me ||
+        await guild.members.fetchMe()
+            .catch(error => {
+                console.error(
+                    `ROD ${request.id}: impossible de recuperer le membre bot :`,
+                    error
+                );
+
+                return null;
+            });
+
+    if (!botMember) {
+        roleResult.reason =
+            'Membre bot introuvable.';
+
+        return roleResult;
+    }
+
+    if (
+        !botMember.permissions.has(
+            PermissionFlagsBits.ManageRoles
+        )
+    ) {
+        roleResult.reason =
+            'Permission ManageRoles manquante.';
+
+        console.error(
+            `ROD ${request.id}: permission ManageRoles manquante pour retirer ${role.id}.`
+        );
+
+        return roleResult;
+    }
+
+    if (role.position >= botMember.roles.highest.position) {
+        roleResult.reason =
+            'Role du bot trop bas dans la hierarchie Discord.';
+
+        console.error(
+            `ROD ${request.id}: role bot trop bas pour retirer ${role.name} (${role.id}).`
+        );
+
+        return roleResult;
+    }
+
+    try {
+        await member.roles.remove(
+            role,
+            `Cloture demande role_on_demande ${request.id}`
+        );
+
+        roleResult.success = true;
+        roleResult.removed = true;
+
+        return roleResult;
+
+    } catch (error) {
+        roleResult.reason =
+            error.message || 'Erreur Discord inconnue.';
+
+        console.error(
+            `ROD ${request.id}: impossible de retirer le role declencheur ${role.id} a ${member.id} :`,
+            error
+        );
+
+        return roleResult;
+    }
+}
+
 function renderMessage(message) {
     const date =
         new Date(message.createdTimestamp)
@@ -770,7 +890,8 @@ async function buildTranscript({
     request,
     reason,
     closedBy,
-    status
+    status,
+    triggerRoleRemoval
 }) {
     const requester =
         await guild.members.fetch(request.requester_user_id)
@@ -823,6 +944,11 @@ Salons crees:
 - staff: ${staffChannel ? `${staffChannel.name} (${staffChannel.id})` : request.staff_channel_id || 'Aucun'}
 - vocal: ${voiceChannel ? `${voiceChannel.name} (${voiceChannel.id})` : request.voice_channel_id || 'Aucun'}
 
+Gestion du role declencheur
+- Role declencheur : ${triggerRoleRemoval?.roleName || 'Inconnu'} (${triggerRoleRemoval?.roleId || request.trigger_role_id})
+- Retrait effectue : ${triggerRoleRemoval?.removed ? 'oui' : 'non'}
+- Raison si echec : ${triggerRoleRemoval?.removed ? 'Aucune' : (triggerRoleRemoval?.reason || 'Non renseignee')}
+
 MESSAGES DE LA DEMANDE
 ==============================
 ${requestMessages.length > 0 ? requestMessages.map(renderMessage).join('\n\n---\n\n') : 'Aucun message recupere.'}
@@ -838,7 +964,8 @@ async function archiveTranscript({
     request,
     reason,
     closedBy,
-    status
+    status,
+    triggerRoleRemoval
 }) {
     const config =
         await getConfig(guild.id);
@@ -856,7 +983,8 @@ async function archiveTranscript({
             request,
             reason,
             closedBy,
-            status
+            status,
+            triggerRoleRemoval
         });
 
     const file =
@@ -911,12 +1039,24 @@ async function closeRequest({
     closedBy,
     status = 'closed'
 }) {
+    const triggerRoleRemoval =
+        await removeTriggerRoleFromRequester(
+            guild,
+            request
+        );
+
     await archiveTranscript({
         guild,
         request,
         reason,
         closedBy,
-        status
+        status,
+        triggerRoleRemoval
+    }).catch(error => {
+        console.error(
+            `ROD ${request.id}: impossible d'archiver le transcript :`,
+            error
+        );
     });
 
     await pool.query(`
@@ -1052,5 +1192,6 @@ module.exports = {
     mentionAccess,
     removeAccess,
     removePingRole,
+    removeTriggerRoleFromRequester,
     saveConfig
 };
